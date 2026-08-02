@@ -1,0 +1,953 @@
+/* ==========================================================================
+   Aura Manager - foglio di stile unico.
+
+   Sostituisce i cinque file sovrapposti dell'originale (style.css,
+   aura-theme.css, mobile-improvements.css, mobile-critical-fixes.css,
+   mobile-contrast-fixes.css), che si correggevano a vicenda a colpi di
+   !important.
+
+   Impostazione: minimale, senza emoji, con la gamma ambra del marchio resa
+   piu' sobria per restare leggibile anche su superfici ampie.
+   ========================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  /* Gamma ambra: la tinta del marchio, desaturata per l'uso su testo e bordi. */
+  --ambra-900: #7c2d12;
+  --ambra-700: #c2410c;
+  --ambra-600: #ea580c;
+  --ambra-500: #f97316;
+  --ambra-100: #ffedd5;
+  --ambra-50: #fff7ed;
+
+  --sfondo: #faf9f7;
+  --superficie: #ffffff;
+  --superficie-alt: #f5f4f2;
+  --bordo: #e7e5e4;
+  --bordo-forte: #d6d3d1;
+  --testo: #1c1917;
+  --testo-tenue: #6b6763;
+  --testo-debole: #8f8a85;
+
+  --primario: var(--ambra-700);
+  --primario-vivo: var(--ambra-600);
+  --primario-sfondo: var(--ambra-50);
+  --primario-bordo: #fed7aa;
+
+  --positivo: #15803d;
+  --positivo-sfondo: #f0fdf4;
+  --negativo: #b91c1c;
+  --negativo-sfondo: #fef2f2;
+  --attenzione: #a16207;
+  --attenzione-sfondo: #fefce8;
+
+  --raggio: 10px;
+  --raggio-piccolo: 6px;
+  --ombra: 0 1px 2px rgb(28 25 23 / 6%), 0 1px 3px rgb(28 25 23 / 4%);
+  --ombra-alta: 0 4px 12px rgb(28 25 23 / 10%);
+
+  --larghezza-barra: 236px;
+  --spazio: 1rem;
+
+  --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-numeri: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sfondo: #1c1917;
+    --superficie: #232020;
+    --superficie-alt: #2c2827;
+    --bordo: #3a3533;
+    --bordo-forte: #4a4442;
+    --testo: #f5f4f2;
+    --testo-tenue: #a8a29e;
+    --testo-debole: #857f7a;
+
+    --primario: #fb923c;
+    --primario-vivo: #fdba74;
+    --primario-sfondo: #2a1f16;
+    --primario-bordo: #6b3d1b;
+
+    --positivo: #4ade80;
+    --positivo-sfondo: #14251a;
+    --negativo: #f87171;
+    --negativo-sfondo: #2a1717;
+    --attenzione: #fbbf24;
+    --attenzione-sfondo: #2a2415;
+
+    --ombra: 0 1px 2px rgb(0 0 0 / 30%);
+    --ombra-alta: 0 4px 14px rgb(0 0 0 / 40%);
+  }
+}
+
+/* ------------------------------------------------------------------ base */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--testo);
+  background: var(--sfondo);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.05rem;
+}
+
+h3 {
+  font-size: 0.9rem;
+}
+
+a {
+  color: var(--primario);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Il focus deve restare sempre visibile per chi naviga da tastiera. */
+:focus-visible {
+  outline: 2px solid var(--primario);
+  outline-offset: 2px;
+  border-radius: var(--raggio-piccolo);
+}
+
+/* --------------------------------------------------------------- layout */
+.guscio {
+  display: flex;
+  min-height: 100vh;
+}
+
+.barra {
+  width: var(--larghezza-barra);
+  flex-shrink: 0;
+  background: var(--superficie);
+  border-right: 1px solid var(--bordo);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.barra__marchio {
+  padding: 1.25rem 1.1rem 1rem;
+  border-bottom: 1px solid var(--bordo);
+}
+
+.barra__nome {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--testo);
+}
+
+.barra__nome span {
+  color: var(--primario);
+}
+
+.barra__ruolo {
+  font-size: 0.72rem;
+  color: var(--testo-debole);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.15rem;
+}
+
+.barra__menu {
+  padding: 0.75rem 0.6rem;
+  flex: 1;
+}
+
+.barra__gruppo {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--testo-debole);
+  padding: 0.9rem 0.5rem 0.35rem;
+}
+
+.barra__voce {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--raggio-piccolo);
+  color: var(--testo-tenue);
+  font-size: 0.875rem;
+  margin-bottom: 1px;
+}
+
+.barra__voce:hover {
+  background: var(--superficie-alt);
+  color: var(--testo);
+  text-decoration: none;
+}
+
+.barra__voce--attiva {
+  background: var(--primario-sfondo);
+  color: var(--primario);
+  font-weight: 550;
+}
+
+.barra__voce--attiva:hover {
+  background: var(--primario-sfondo);
+  color: var(--primario);
+}
+
+.barra__pieduzzo {
+  padding: 0.75rem;
+  border-top: 1px solid var(--bordo);
+}
+
+.barra__utente {
+  font-size: 0.8rem;
+  color: var(--testo-tenue);
+  padding: 0 0.6rem 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.contenuto {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.intestazione {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.1rem 1.75rem;
+  border-bottom: 1px solid var(--bordo);
+  background: var(--superficie);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.intestazione__titolo {
+  flex: 1;
+  min-width: 0;
+}
+
+.intestazione__sottotitolo {
+  font-size: 0.82rem;
+  color: var(--testo-tenue);
+  margin-top: 0.1rem;
+}
+
+.pagina {
+  padding: 1.5rem 1.75rem 3rem;
+  max-width: 1280px;
+  width: 100%;
+}
+
+/* Apertura menu su schermi piccoli. */
+.apri-menu {
+  display: none;
+  background: none;
+  border: 1px solid var(--bordo-forte);
+  border-radius: var(--raggio-piccolo);
+  padding: 0.4rem 0.55rem;
+  cursor: pointer;
+  color: var(--testo);
+}
+
+.apri-menu span {
+  display: block;
+  width: 16px;
+  height: 2px;
+  background: currentcolor;
+  border-radius: 2px;
+}
+
+.apri-menu span + span {
+  margin-top: 3px;
+}
+
+.velo {
+  display: none;
+}
+
+/* --------------------------------------------------------------- schede */
+.griglia {
+  display: grid;
+  gap: var(--spazio);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 1.25rem;
+}
+
+.scheda {
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  padding: 1rem 1.1rem;
+  box-shadow: var(--ombra);
+}
+
+.scheda--piena {
+  grid-column: 1 / -1;
+}
+
+.scheda__etichetta {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--testo-debole);
+}
+
+.scheda__valore {
+  font-size: 1.55rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.3rem;
+  letter-spacing: -0.02em;
+}
+
+.scheda__nota {
+  font-size: 0.78rem;
+  color: var(--testo-tenue);
+  margin-top: 0.25rem;
+}
+
+.pannello {
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.pannello__testa {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--bordo);
+}
+
+.pannello__corpo {
+  padding: 1.1rem;
+}
+
+.pannello__corpo--stretto {
+  padding: 0;
+}
+
+/* -------------------------------------------------------------- tabelle */
+.tabella-contenitore {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+thead th {
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--testo-debole);
+  font-weight: 600;
+  padding: 0.6rem 1.1rem;
+  border-bottom: 1px solid var(--bordo);
+  white-space: nowrap;
+  background: var(--superficie-alt);
+}
+
+tbody td {
+  padding: 0.7rem 1.1rem;
+  border-bottom: 1px solid var(--bordo);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+tbody tr:hover {
+  background: var(--superficie-alt);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.num--positivo {
+  color: var(--positivo);
+}
+
+.num--negativo {
+  color: var(--negativo);
+}
+
+.principale {
+  font-weight: 550;
+}
+
+.secondario {
+  font-size: 0.78rem;
+  color: var(--testo-tenue);
+}
+
+/* -------------------------------------------------------------- etichette */
+.stato {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.stato--attesa {
+  background: var(--attenzione-sfondo);
+  color: var(--attenzione);
+  border-color: currentcolor;
+}
+
+.stato--approvato {
+  background: var(--positivo-sfondo);
+  color: var(--positivo);
+  border-color: currentcolor;
+}
+
+.stato--rifiutato {
+  background: var(--negativo-sfondo);
+  color: var(--negativo);
+  border-color: currentcolor;
+}
+
+.stato--neutro {
+  background: var(--superficie-alt);
+  color: var(--testo-tenue);
+  border-color: var(--bordo-forte);
+}
+
+.pastiglia {
+  display: inline-block;
+  font-size: 0.72rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--raggio-piccolo);
+  background: var(--primario-sfondo);
+  color: var(--primario);
+  border: 1px solid var(--primario-bordo);
+  font-variant-numeric: tabular-nums;
+}
+
+.conteggio {
+  display: inline-block;
+  min-width: 1.35rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--primario);
+  color: #fff;
+}
+
+/* --------------------------------------------------------------- moduli */
+.modulo {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.modulo--due {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.campo__etichetta {
+  font-size: 0.78rem;
+  font-weight: 550;
+  color: var(--testo-tenue);
+}
+
+.campo__aiuto {
+  font-size: 0.75rem;
+  color: var(--testo-debole);
+}
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="month"],
+input[type="tel"],
+input[type="search"],
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--testo);
+  background: var(--superficie);
+  border: 1px solid var(--bordo-forte);
+  border-radius: var(--raggio-piccolo);
+  padding: 0.5rem 0.65rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primario);
+  box-shadow: 0 0 0 3px var(--primario-sfondo);
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.campo--riga {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.campo--riga input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primario);
+  flex-shrink: 0;
+}
+
+.filtri {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: flex-end;
+}
+
+.filtri .campo {
+  min-width: 130px;
+}
+
+/* -------------------------------------------------------------- pulsanti */
+.pulsante {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 550;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--raggio-piccolo);
+  border: 1px solid var(--bordo-forte);
+  background: var(--superficie);
+  color: var(--testo);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.pulsante:hover {
+  background: var(--superficie-alt);
+  text-decoration: none;
+}
+
+.pulsante--primario {
+  background: var(--primario);
+  border-color: var(--primario);
+  color: #fff;
+}
+
+.pulsante--primario:hover {
+  background: var(--primario-vivo);
+  border-color: var(--primario-vivo);
+  color: #fff;
+}
+
+.pulsante--pericolo {
+  color: var(--negativo);
+  border-color: currentcolor;
+}
+
+.pulsante--pericolo:hover {
+  background: var(--negativo-sfondo);
+}
+
+.pulsante--piccolo {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.pulsante--largo {
+  width: 100%;
+}
+
+.pulsante:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.azioni {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* --------------------------------------------------------------- avvisi */
+.avviso {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--raggio-piccolo);
+  border: 1px solid;
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+.avviso--ok {
+  background: var(--positivo-sfondo);
+  border-color: var(--positivo);
+  color: var(--positivo);
+}
+
+.avviso--errore {
+  background: var(--negativo-sfondo);
+  border-color: var(--negativo);
+  color: var(--negativo);
+}
+
+.avviso--attenzione {
+  background: var(--attenzione-sfondo);
+  border-color: var(--attenzione);
+  color: var(--attenzione);
+}
+
+.avviso--informativo {
+  background: var(--superficie-alt);
+  border-color: var(--bordo-forte);
+  color: var(--testo-tenue);
+}
+
+.vuoto {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--testo-debole);
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------- organigramma */
+.albero {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.albero .albero {
+  margin-left: 1.1rem;
+  padding-left: 1.1rem;
+  border-left: 1px solid var(--bordo);
+}
+
+.albero__nodo {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.55rem 0.7rem;
+  margin: 0.25rem 0;
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio-piccolo);
+  background: var(--superficie);
+}
+
+.albero__nodo--radice {
+  border-color: var(--primario-bordo);
+  background: var(--primario-sfondo);
+}
+
+.albero__nome {
+  font-weight: 550;
+}
+
+.albero__dati {
+  margin-left: auto;
+  display: flex;
+  gap: 0.9rem;
+  font-size: 0.78rem;
+  color: var(--testo-tenue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- grafico */
+.grafico {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  height: 130px;
+  padding-top: 0.5rem;
+}
+
+.grafico__colonna {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  min-width: 0;
+  height: 100%;
+}
+
+.grafico__barra {
+  width: 100%;
+  max-width: 46px;
+  background: var(--primario);
+  border-radius: 3px 3px 0 0;
+  min-height: 3px;
+  /* Senza flex-shrink: 0 la barra viene compressa dal contenitore in colonna
+     e l'altezza calcolata non ha alcun effetto visibile. */
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.grafico__colonna:hover .grafico__barra {
+  opacity: 0.8;
+}
+
+.grafico__etichetta {
+  font-size: 0.68rem;
+  color: var(--testo-debole);
+  white-space: nowrap;
+}
+
+.grafico__valore {
+  font-size: 0.7rem;
+  color: var(--testo-tenue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- login */
+.accesso {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: var(--sfondo);
+}
+
+.accesso__riquadro {
+  width: 100%;
+  max-width: 360px;
+  background: var(--superficie);
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio);
+  box-shadow: var(--ombra-alta);
+  padding: 1.75rem;
+}
+
+.accesso__marchio {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.accesso__nome {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.accesso__nome span {
+  color: var(--primario);
+}
+
+.accesso__sotto {
+  font-size: 0.8rem;
+  color: var(--testo-tenue);
+  margin-top: 0.25rem;
+}
+
+/* -------------------------------------------------------------- utilita' */
+.riga-tra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.dettagli {
+  border: 1px solid var(--bordo);
+  border-radius: var(--raggio-piccolo);
+  padding: 0.6rem 0.8rem;
+  background: var(--superficie-alt);
+}
+
+.dettagli summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 550;
+}
+
+.dettagli[open] summary {
+  margin-bottom: 0.7rem;
+}
+
+.solo-lettori {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.rientro-1 { padding-left: 1.25rem; }
+.rientro-2 { padding-left: 2.5rem; }
+.rientro-3 { padding-left: 3.75rem; }
+.rientro-4 { padding-left: 5rem; }
+
+/* ------------------------------------------------------------ responsive */
+@media (max-width: 900px) {
+  .barra {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 60;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--ombra-alta);
+  }
+
+  .guscio--menu-aperto .barra {
+    transform: translateX(0);
+  }
+
+  .guscio--menu-aperto .velo {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgb(0 0 0 / 40%);
+    z-index: 50;
+    border: 0;
+  }
+
+  .apri-menu {
+    display: block;
+  }
+
+  .pagina,
+  .intestazione {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+  }
+
+  .scheda__valore {
+    font-size: 1.3rem;
+  }
+
+  .griglia {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+
+  thead th,
+  tbody td {
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+  }
+
+  /* Le tabelle larghe restano scorrevoli dentro il proprio contenitore,
+     senza far scorrere l'intera pagina in orizzontale. */
+  .tabella-contenitore table {
+    min-width: 560px;
+  }
+
+  .albero .albero {
+    margin-left: 0.5rem;
+    padding-left: 0.6rem;
+  }
+
+  .albero__dati {
+    margin-left: 0;
+    width: 100%;
+    gap: 0.7rem;
+  }
+
+  .azioni .pulsante {
+    flex: 1;
+  }
+}
+
+@media print {
+  .barra,
+  .intestazione,
+  .azioni,
+  .filtri {
+    display: none !important;
+  }
+
+  .pagina {
+    padding: 0;
+  }
+
+  .pannello,
+  .scheda {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+}

@@ -1,728 +1,82 @@
-<div class="page-header">
-    <h1><i class="fas fa-user-plus"></i> Gestione Richieste Creazione PR</h1>
-    <p>Gestisci le richieste di creazione di nuovi PR inviate dai PR con poteri speciali</p>
+<div class="avviso avviso--informativo">
+  Proposte inviate dai collaboratori con delega. Approvando, il profilo viene creato
+  con la password che il richiedente ha gia' scelto: l'interessato puo' accedere subito.
 </div>
 
-<style>
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .stat-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
-            padding: 1.5rem;
-            border-radius: 15px;
-            box-shadow: 0 5px 25px rgba(247, 108, 28, 0.12);
-            border: 2px solid rgba(250, 215, 96, 0.25);
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(135deg, var(--ecstasy) 0%, var(--coral) 50%, var(--saffron-mango) 100%);
-        }
-        
-        .stat-number {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: var(--ecstasy);
-            margin-bottom: 0.5rem;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-        }
-        
-        .stat-label {
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-        
-        .richieste-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 5px 25px rgba(247, 108, 28, 0.12);
-            border: 2px solid rgba(250, 215, 96, 0.25);
-        }
-        
-        .richieste-table th {
-            background: linear-gradient(135deg, var(--ecstasy) 0%, var(--crusta) 50%, var(--coral) 100%);
-            padding: 1rem 0.8rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--white);
-            border-bottom: 3px solid var(--saffron-mango);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        
-        .richieste-table td {
-            padding: 1rem 0.8rem;
-            border-bottom: 1px solid rgba(250, 215, 96, 0.15);
-            vertical-align: top;
-        }
-        
-        .richieste-table tr:hover {
-            background: rgba(250, 215, 96, 0.08);
-        }
-        
-        .stato-badge {
-            padding: 0.35rem 0.9rem;
-            border-radius: 1.5rem;
-            font-size: 0.8rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            display: inline-block;
-        }
-        
-        .stato-in-attesa {
-            background: rgba(249, 186, 77, 0.2);
-            color: var(--yellow-orange);
-            border: 1px solid rgba(249, 186, 77, 0.4);
-        }
-        
-        .stato-approvata {
-            background: rgba(34, 139, 34, 0.15);
-            color: #228B22;
-            border: 1px solid rgba(34, 139, 34, 0.3);
-        }
-        
-        .stato-rifiutata {
-            background: rgba(220, 38, 38, 0.15);
-            color: #DC2626;
-            border: 1px solid rgba(220, 38, 38, 0.3);
-        }
-        
-        .azioni-btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            margin-right: 0.5rem;
-            margin-bottom: 0.25rem;
-            transition: all 0.3s ease;
-            font-weight: 600;
-        }
-        
-        .btn-modifica {
-            background: linear-gradient(135deg, var(--ecstasy), var(--crusta));
-            color: white;
-            box-shadow: 0 2px 6px rgba(247, 108, 28, 0.3);
-        }
-        
-        .btn-modifica:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(247, 108, 28, 0.4);
-        }
-        
-        .btn-approva {
-            background: #10b981;
-            color: white;
-            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
-        }
-        
-        .btn-approva:hover {
-            background: #059669;
-            transform: translateY(-2px);
-        }
-        
-        .btn-rifiuta {
-            background: #ef4444;
-            color: white;
-            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
-        }
-        
-        .btn-rifiuta:hover {
-            background: #dc2626;
-            transform: translateY(-2px);
-        }
-        
-        .btn-dettagli {
-            background: #6b7280;
-            color: white;
-        }
-        
-        .btn-dettagli:hover {
-            background: #4b5563;
-        }
-        
-        .azioni-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
-        }
-        
-        .modal-content {
-            background-color: #fff;
-            margin: 2% auto;
-            padding: 2rem;
-            border-radius: 10px;
-            width: 90%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-        
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 3px solid rgba(250, 215, 96, 0.3);
-        }
-        
-        .modal-header h2 {
-            margin: 0;
-            color: var(--ecstasy);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .close {
-            color: #9ca3af;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            line-height: 1;
-        }
-        
-        .close:hover {
-            color: #374151;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .form-group {
-            flex: 1;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: #374151;
-        }
-        
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 0.8rem;
-            border: 1px solid #d1d5db;
-            border-radius: 6px;
-            font-size: 1rem;
-            box-sizing: border-box;
-        }
-        
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-            outline: none;
-            border-color: var(--ecstasy);
-            box-shadow: 0 0 0 3px rgba(247, 108, 28, 0.15);
-        }
-        
-        .modal-buttons {
-            margin-top: 2rem;
-            display: flex;
-            gap: 1rem;
-            justify-content: flex-end;
-        }
-        
-        .save-btn {
-            background: #10b981;
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-        
-        .save-btn:hover {
-            background: #059669;
-        }
-        
-        .reject-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-        }
-        
-        .reject-btn:hover {
-            background: #dc2626;
-        }
-        
-        .cancel-btn {
-            background: #6b7280;
-            color: white;
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        
-        .cancel-btn:hover {
-            background: #4b5563;
-        }
-        
-        .no-richieste {
-            text-align: center;
-            padding: 3rem;
-            color: #6b7280;
-        }
-        
-        .no-richieste h3 {
-            margin-bottom: 0.5rem;
-        }
-        
-        .richiesta-info {
-            background: linear-gradient(135deg, rgba(250, 215, 96, 0.1) 0%, rgba(249, 186, 77, 0.1) 100%);
-            border-left: 4px solid var(--ecstasy);
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border-radius: 8px;
-        }
-        
-        .richiesta-info h4 {
-            margin: 0 0 0.5rem;
-            color: var(--ecstasy);
-        }
-        
-        @media (max-width: 768px) {
-            .stats-bar {
-                flex-direction: column;
-            }
-            
-            .form-row {
-                flex-direction: column;
-            }
-            
-            .richieste-table {
-                font-size: 0.9rem;
-            }
-            
-            .richieste-table th,
-            .richieste-table td {
-                padding: 0.5rem;
-            }
-        }
-        
-        /* Messaggi di feedback */
-        .message {
-            padding: 1rem;
-            border-radius: 6px;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        
-        .message-icon {
-            font-size: 1.2rem;
-        }
-    </style>
+<% if (!elenco.length) { %>
+  <div class="pannello">
+    <div class="vuoto">Nessuna proposta ricevuta.</div>
+  </div>
+<% } else { %>
+  <% elenco.forEach(function (r) { %>
+    <div class="pannello">
+      <div class="pannello__testa">
+        <div>
+          <h2><%= r.nome %> <%= r.cognome %></h2>
+          <div class="secondario">
+            Proposto da <%= r.richiedente_nickname || 'collaboratore rimosso' %>
+            il <%= dataOraIt(r.data_richiesta) %>
+          </div>
+        </div>
+        <span class="stato <%= r.stato === 'approvata' ? 'stato--approvato' : (r.stato === 'rifiutata' ? 'stato--rifiutato' : 'stato--attesa') %>">
+          <%= r.stato === 'approvata' ? 'Approvata' : (r.stato === 'rifiutata' ? 'Rifiutata' : 'In attesa') %>
+        </span>
+      </div>
 
-    <!-- Messaggi di feedback -->
-    <div id="messageContainer"></div>
-    
-    <div class="stats-bar">
-        <div class="stat-card">
-            <div class="stat-number"><%= stats.inAttesa %></div>
-            <div class="stat-label">In Attesa</div>
+      <div class="pannello__corpo">
+        <div class="griglia" style="margin-bottom:1rem">
+          <div>
+            <div class="scheda__etichetta">Nickname</div>
+            <div class="principale"><%= r.nickname %></div>
+          </div>
+          <div>
+            <div class="scheda__etichetta">Telefono</div>
+            <div class="principale"><%= r.numero_telefono %></div>
+          </div>
+          <div>
+            <div class="scheda__etichetta">Percentuale richiesta</div>
+            <div class="principale"><%= percentuale(r.percentuale_provvigione) %></div>
+          </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number"><%= stats.approvate %></div>
-            <div class="stat-label">Approvate</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number"><%= stats.rifiutate %></div>
-            <div class="stat-label">Rifiutate</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-number"><%= stats.totali %></div>
-            <div class="stat-label">Totali</div>
-        </div>
-    </div>
-    
-    <% if (richieste.length === 0) { %>
-        <div class="no-richieste">
-            <h3>📝 Nessuna richiesta trovata</h3>
-            <p>Al momento non ci sono richieste di creazione PR da gestire.</p>
-        </div>
-    <% } else { %>
-        <table class="richieste-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Richiedente</th>
-                    <th>Nuovo PR</th>
-                    <th>Dettagli</th>
-                    <th>Stato</th>
-                    <th>Data</th>
-                    <th>Azioni</th>
-                </tr>
-            </thead>
-            <tbody>
-                <% richieste.forEach(r => { %>
-                <tr>
-                    <td><strong>#<%= r.id %></strong></td>
-                    <td>
-                        <div style="background: linear-gradient(135deg, rgba(250, 215, 96, 0.15), rgba(249, 186, 77, 0.15)); padding: 10px; border-radius: 8px; border-left: 4px solid var(--ecstasy);">
-                            <strong style="color: var(--ecstasy); font-size: 1.1em;">👤 <%= r.richiedente_nickname %></strong><br>
-                            <small style="color: var(--text-secondary);">
-                                <%= r.richiedente_nome %> <%= r.richiedente_cognome %><br>
-                                ID: <%= r.fk_richiedente %>
-                            </small>
-                        </div>
-                    </td>
-                    <td>
-                        <strong><%= r.nickname %></strong><br>
-                        <small><%= r.nome %> <%= r.cognome %></small><br>
-                        <small>📞 <%= r.numero_telefono %></small>
-                    </td>
-                    <td>
-                        <strong>Percentuale:</strong> <%= r.percentuale_provvigione %>%<br>
-                        <strong>Padre:</strong> <%= r.padre_nickname || 'Non specificato' %><br>
-                        <% if (r.note) { %>
-                            <strong>Note richiesta:</strong><br>
-                            <em>"<%= r.note %>"</em>
-                        <% } else { %>
-                            <small><em>Nessuna nota</em></small>
-                        <% } %>
-                    </td>
-                    <td>
-                        <span class="stato-badge stato-<%= r.stato.replace(' ', '-') %>">
-                            <%= r.stato %>
-                        </span>
-                    </td>
-                    <td>
-                        <small><%= new Date(r.data_richiesta).toLocaleDateString('it-IT') %></small><br>
-                        <small><%= new Date(r.data_richiesta).toLocaleTimeString('it-IT') %></small>
-                    </td>
-                    <td>
-                        <% if (r.stato === 'in attesa') { %>
-                            <button class="azioni-btn btn-modifica" 
-                                    data-id="<%= r.id %>"
-                                    data-nickname="<%= r.nickname %>"
-                                    data-nome="<%= r.nome %>"
-                                    data-cognome="<%= r.cognome %>"
-                                    data-telefono="<%= r.numero_telefono %>"
-                                    data-percentuale="<%= r.percentuale_provvigione %>"
-                                    data-padre_id="<%= r.fk_padre_proposto || r.fk_richiedente %>"
-                                    data-note="<%= r.note || '' %>"
-                                    data-richiedente="<%= r.richiedente_nickname %>">
-                                Modifica & Approva
-                            </button><br>
-                            <form method="POST" action="/admin/richieste-pr/rifiuta" style="display:inline;">
-                                <input type="hidden" name="id" value="<%= r.id %>">
-                                <button type="submit" class="azioni-btn btn-rifiuta" 
-                                        onclick="return confirm('Sei sicuro di voler rifiutare questa richiesta?')">
-                                    Rifiuta
-                                </button>
-                            </form>
-                        <% } else { %>
-                            <span class="azioni-btn" style="background: #e5e7eb; color: #6b7280;">
-                                <%= r.stato === 'approvata' ? 'Approvata' : 'Rifiutata' %>
-                            </span>
-                        <% } %>
-                    </td>
-                </tr>
-                <% }) %>
-            </tbody>
-        </table>
-    <% } %>
-    
-    <!-- Modal per modifica e approvazione -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>✏️ Modifica e Approva Richiesta</h2>
-                <span class="close">&times;</span>
-            </div>
-            
-            <div class="richiesta-info">
-                <h4>📋 Informazioni Richiesta</h4>
-                <p id="richiesta-dettagli"></p>
-            </div>
-            
-            <form id="editForm" method="POST" action="/admin/richieste-pr/approva">
-                <input type="hidden" id="edit-id" name="id">
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-nickname">Nickname *</label>
-                        <input type="text" id="edit-nickname" name="nickname" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-telefono">Telefono *</label>
-                        <input type="tel" id="edit-telefono" name="numero_telefono" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-nome">Nome *</label>
-                        <input type="text" id="edit-nome" name="nome" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-cognome">Cognome *</label>
-                        <input type="text" id="edit-cognome" name="cognome" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="edit-percentuale">Percentuale Provvigione (%) *</label>
-                        <input type="number" id="edit-percentuale" name="percentuale_provvigione" 
-                               min="0" max="100" step="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-padre">Padre *</label>
-                        <select id="edit-padre" name="padre_proposto_id" required>
-                            <% tuttiPR.forEach(pr => { %>
-                                <option value="<%= pr.id %>"><%= pr.nickname %> (ID: <%= pr.id %>)</option>
-                            <% }) %>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="edit-note-admin">Note Admin (motivazione approvazione)</label>
-                    <textarea id="edit-note-admin" name="note_admin" rows="3" 
-                              placeholder="Aggiungi note sull'approvazione..."></textarea>
-                </div>
-                
-                <div class="modal-buttons">
-                    <button type="submit" class="save-btn">✅ Approva e Crea PR</button>
-                    <button type="button" class="cancel-btn">Annulla</button>
-                </div>
+
+        <% if (r.note) { %>
+          <div class="campo" style="margin-bottom:.75rem">
+            <span class="campo__etichetta">Note del richiedente</span>
+            <div class="secondario"><%= r.note %></div>
+          </div>
+        <% } %>
+
+        <% if (r.note_admin) { %>
+          <div class="campo" style="margin-bottom:.75rem">
+            <span class="campo__etichetta">La tua risposta</span>
+            <div class="secondario"><%= r.note_admin %></div>
+          </div>
+        <% } %>
+
+        <% if (r.stato === 'in_attesa') { %>
+          <div class="azioni">
+            <form method="post" action="/admin/richieste-pr/<%= r.id %>/approva"
+                  data-conferma="Creare il profilo di <%= r.nickname %>?">
+              <button type="submit" class="pulsante pulsante--primario">Approva e crea</button>
             </form>
-        </div>
+            <button type="button" class="pulsante pulsante--pericolo"
+                    data-apre="rifiuta-pr-<%= r.id %>" aria-expanded="false">Rifiuta</button>
+          </div>
+
+          <form method="post" action="/admin/richieste-pr/<%= r.id %>/rifiuta"
+                id="rifiuta-pr-<%= r.id %>" hidden style="margin-top:.9rem">
+            <div class="campo">
+              <label class="campo__etichetta" for="na-<%= r.id %>">Motivo</label>
+              <input type="text" id="na-<%= r.id %>" name="note_admin" maxlength="500" required>
+            </div>
+            <div class="azioni" style="margin-top:.6rem">
+              <button type="submit" class="pulsante pulsante--pericolo">Conferma rifiuto</button>
+            </div>
+          </form>
+        <% } else { %>
+          <div class="secondario">Gestita il <%= dataOraIt(r.data_risposta) %></div>
+        <% } %>
+      </div>
     </div>
-    
-    <script>
-        const editModal = document.getElementById('editModal');
-        const closeBtn = document.querySelector('.close');
-        
-        function openEditModal(richiestaId) {
-            const button = document.querySelector(`[data-id="${richiestaId}"]`);
-            
-            // Popola il form con i dati attuali
-            document.getElementById('edit-id').value = richiestaId;
-            document.getElementById('edit-nickname').value = button.dataset.nickname;
-            document.getElementById('edit-nome').value = button.dataset.nome;
-            document.getElementById('edit-cognome').value = button.dataset.cognome;
-            document.getElementById('edit-telefono').value = button.dataset.telefono;
-            document.getElementById('edit-percentuale').value = button.dataset.percentuale;
-            
-            // Preseleziona il padre (default: il richiedente)
-            const padreId = button.dataset.padre_id;
-            if (padreId) {
-                document.getElementById('edit-padre').value = padreId;
-            }
-            
-            // Aggiorna l'action del form con l'ID corretto
-            document.getElementById('editForm').action = `/admin/richieste-pr/${richiestaId}/approva`;
-            
-            // Mostra le informazioni della richiesta con nota ben visibile
-            const note = button.dataset.note;
-            const richiedente = button.dataset.richiedente;
-            let dettagli = `
-                <strong>ID Richiesta:</strong> #${richiestaId}<br>
-                <strong>Richiedente:</strong> ${richiedente}<br>
-                <strong>Nuovo PR:</strong> ${button.dataset.nickname}<br>
-                <strong>Nome completo:</strong> ${button.dataset.nome} ${button.dataset.cognome}
-            `;
-            
-            if (note && note.trim() !== '') {
-                dettagli += `<br><br><strong>📝 Nota della richiesta:</strong><br>
-                            <div style="background: linear-gradient(135deg, rgba(250, 215, 96, 0.15), rgba(249, 186, 77, 0.15)); padding: 12px; border-radius: 8px; border-left: 4px solid var(--ecstasy); margin-top: 8px; font-style: italic;">
-                                "${note}"
-                            </div>`;
-            } else {
-                dettagli += `<br><br><em>Nessuna nota allegata alla richiesta</em>`;
-            }
-            
-            document.getElementById('richiesta-dettagli').innerHTML = dettagli;
-            
-            // Mostra il modal
-            editModal.style.display = 'block';
-        }
-        
-        function closeEditModal() {
-            editModal.style.display = 'none';
-        }
-        
-        // Chiudi modal cliccando sulla X
-        closeBtn.addEventListener('click', closeEditModal);
-        
-        // Chiudi modal cliccando fuori
-        window.addEventListener('click', function(event) {
-            if (event.target === editModal) {
-                closeEditModal();
-            }
-        });
-        
-        // Aggiorna automaticamente la pagina ogni 30 secondi per nuove richieste
-        setInterval(() => {
-            if (!editModal.style.display || editModal.style.display === 'none') {
-                location.reload();
-            }
-        }, 30000);
-        
-        // Gestione messaggi di feedback basati sui parametri URL
-        document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const messageContainer = document.getElementById('messageContainer');
-            
-            if (urlParams.has('success')) {
-                const successType = urlParams.get('success');
-                let message = '';
-                let icon = '✅';
-                
-                switch(successType) {
-                    case '1':
-                        message = 'PR creato con successo! La richiesta è stata approvata.';
-                        break;
-                    case '2':
-                        message = 'Richiesta rifiutata con successo.';
-                        icon = '❌';
-                        break;
-                    default:
-                        message = 'Operazione completata con successo.';
-                }
-                
-                messageContainer.innerHTML = `
-                    <div class="message success">
-                        <span class="message-icon">${icon}</span>
-                        <span>${message}</span>
-                    </div>
-                `;
-            }
-            
-            if (urlParams.has('error')) {
-                const errorType = urlParams.get('error');
-                let message = '';
-                
-                switch(errorType) {
-                    case 'notfound':
-                        message = 'Richiesta non trovata.';
-                        break;
-                    case 'already_managed':
-                        message = 'Richiesta già gestita in precedenza.';
-                        break;
-                    case 'creation_failed':
-                        message = 'Errore nella creazione del PR. Verifica i dati inseriti.';
-                        break;
-                    case 'update_failed':
-                        message = 'Errore nell\'aggiornamento della richiesta.';
-                        break;
-                    case 'db_error':
-                        message = 'Errore del database. Riprova più tardi.';
-                        break;
-                    case 'server_error':
-                        message = 'Errore interno del server. Riprova più tardi.';
-                        break;
-                    default:
-                        message = 'Si è verificato un errore. Riprova più tardi.';
-                }
-                
-                messageContainer.innerHTML = `
-                    <div class="message error">
-                        <span class="message-icon">⚠️</span>
-                        <span>${message}</span>
-                    </div>
-                `;
-            }
-            
-            // Nascondi il messaggio dopo 5 secondi
-            if (messageContainer.innerHTML.trim() !== '') {
-                setTimeout(() => {
-                    messageContainer.innerHTML = '';
-                    // Rimuovi i parametri URL dalla barra degli indirizzi
-                    const url = new URL(window.location);
-                    url.searchParams.delete('success');
-                    url.searchParams.delete('error');
-                    window.history.replaceState({}, '', url);
-                }, 5000);
-            }
-        });
-
-        // Attach programmatic listeners to 'Modifica & Approva' buttons (CSP-compliant)
-        try {
-            const modButtons = document.querySelectorAll('.btn-modifica');
-            modButtons.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const id = btn.getAttribute('data-id');
-                    if (id) {
-                        openEditModal(id);
-                    } else {
-                        console.warn('[RICHIESTE] btn-modifica missing data-id', btn);
-                    }
-                });
-            });
-            console.log('[RICHIESTE] Attached listeners to btn-modifica:', modButtons.length);
-        } catch (attachErr) {
-            console.error('[RICHIESTE] Error attaching btn-modifica listeners:', attachErr);
-        }
-
-        // Attach listener to modal cancel button
-        try {
-            const cancelBtn = document.querySelector('.cancel-btn');
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    closeEditModal();
-                });
-                console.log('[RICHIESTE] cancel-btn listener attached');
-            }
-        } catch (cErr) {
-            console.error('[RICHIESTE] Error attaching cancel-btn listener:', cErr);
-        }
-    </script>
+  <% }); %>
+<% } %>

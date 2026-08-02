@@ -1,0 +1,132 @@
+<div class="griglia">
+  <div class="scheda">
+    <div class="scheda__etichetta">Da versare</div>
+    <div class="scheda__valore"><%= euro(totaleDovuto) %></div>
+    <div class="scheda__nota">Ai collaboratori di primo livello</div>
+  </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Gia' versato</div>
+    <div class="scheda__valore"><%= euro(totaleVersato) %></div>
+    <div class="scheda__nota"><%= numero(storico.length) %> pagamenti registrati</div>
+  </div>
+</div>
+
+<div class="avviso avviso--informativo">
+  Paghi solo i collaboratori di primo livello: sono loro a girare la quota ai propri
+  collaboratori. Cosi' la catena dei pagamenti rispecchia quella delle responsabilita'.
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Situazione dei collaboratori diretti</h2>
+  </div>
+
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!daPagare.length) { %>
+      <div class="vuoto">Non hai collaboratori di primo livello.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Collaboratore</th>
+              <th class="num">Maturato</th>
+              <th class="num">Ricevuto</th>
+              <th class="num">Da versare</th>
+              <th>Ultimo pagamento</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% daPagare.forEach(function (p) { %>
+              <tr>
+                <td>
+                  <div class="principale"><%= p.nickname %></div>
+                  <div class="secondario"><%= percentuale(p.percentuale) %> su <%= euro(p.fatturatoSottoalbero) %></div>
+                </td>
+                <td class="num"><%= euro(p.maturatoLordo) %></td>
+                <td class="num"><%= euro(p.ricevuto) %></td>
+                <td class="num principale <%= segno(p.saldoDaRicevere) %>"><%= euro(p.saldoDaRicevere) %></td>
+                <td class="secondario"><%= p.ultimoPagamento ? dataOraIt(p.ultimoPagamento) : 'mai' %></td>
+                <td>
+                  <% if (p.saldoDaRicevere > 0.01) { %>
+                    <button type="button" class="pulsante pulsante--piccolo pulsante--primario"
+                            data-apre="paga-<%= p.id %>" aria-expanded="false">Registra</button>
+                  <% } else { %>
+                    <span class="stato stato--approvato">Saldato</span>
+                  <% } %>
+                </td>
+              </tr>
+
+              <% if (p.saldoDaRicevere > 0.01) { %>
+                <tr id="paga-<%= p.id %>" hidden>
+                  <td colspan="6" style="background:var(--superficie-alt)">
+                    <form method="post" action="/admin/pagamenti/registra" class="modulo">
+                      <input type="hidden" name="destinatario_id" value="<%= p.id %>">
+                      <div class="filtri">
+                        <div class="campo">
+                          <label class="campo__etichetta" for="imp-<%= p.id %>">Importo</label>
+                          <input type="number" id="imp-<%= p.id %>" name="importo" required
+                                 min="0.01" max="<%= p.saldoDaRicevere %>" step="0.01"
+                                 value="<%= p.saldoDaRicevere %>">
+                          <span class="campo__aiuto">Massimo <%= euro(p.saldoDaRicevere) %></span>
+                        </div>
+                        <div class="campo" style="flex:2">
+                          <label class="campo__etichetta" for="note-<%= p.id %>">Note</label>
+                          <input type="text" id="note-<%= p.id %>" name="note" maxlength="500"
+                                 placeholder="Facoltative">
+                        </div>
+                        <button type="submit" class="pulsante pulsante--primario">Registra pagamento</button>
+                      </div>
+                    </form>
+                  </td>
+                </tr>
+              <% } %>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Pagamenti registrati</h2>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!storico.length) { %>
+      <div class="vuoto">Nessun pagamento registrato.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Destinatario</th>
+              <th class="num">Importo</th>
+              <th>Note</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% storico.forEach(function (p) { %>
+              <tr>
+                <td><%= dataOraIt(p.data_pagamento) %></td>
+                <td class="principale"><%= p.destinatario_nickname %></td>
+                <td class="num"><%= euro(p.importo) %></td>
+                <td class="secondario"><%= p.note || '-' %></td>
+                <td>
+                  <form method="post" action="/admin/pagamenti/<%= p.id %>/annulla"
+                        data-conferma="Annullare questo pagamento di <%= euro(p.importo) %>? Il saldo tornera' scoperto.">
+                    <button type="submit" class="pulsante pulsante--piccolo pulsante--pericolo">Annulla</button>
+                  </form>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

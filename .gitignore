@@ -124,3 +124,6 @@ dist/
 
 # Note personali
 note.txt
+
+# Sessioni persistenti
+# le sessioni vivono dentro iconic.db

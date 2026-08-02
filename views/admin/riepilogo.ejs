@@ -1,0 +1,154 @@
+<% if (avvisi && avvisi.length) { %>
+  <% avvisi.forEach(function (a) { %>
+    <div class="avviso avviso--attenzione" role="alert"><%= a %></div>
+  <% }); %>
+<% } %>
+
+<div class="griglia">
+  <div class="scheda">
+    <div class="scheda__etichetta">Incasso tavoli</div>
+    <div class="scheda__valore"><%= euro(totali.incassoTotale) %></div>
+    <div class="scheda__nota"><%= numero(totali.tavoli) %> tavoli, <%= numero(totali.persone) %> persone</div>
+  </div>
+
+  <div class="scheda">
+    <div class="scheda__etichetta">Provvigioni da riconoscere</div>
+    <div class="scheda__valore"><%= euro(totali.costoProvvigioni) %></div>
+    <div class="scheda__nota">A <%= numero(totali.numeroPr) %> collaboratori</div>
+  </div>
+
+  <div class="scheda">
+    <div class="scheda__etichetta">Guadagno lordo</div>
+    <div class="scheda__valore <%= segno(totali.guadagnoLordo) %>"><%= euro(totali.guadagnoLordo) %></div>
+    <div class="scheda__nota">Margine <%= percentuale(impostazioni.quotaAdmin) %> meno provvigioni</div>
+  </div>
+
+  <div class="scheda">
+    <div class="scheda__etichetta">Guadagno netto</div>
+    <div class="scheda__valore <%= segno(totali.guadagnoNetto) %>"><%= euro(totali.guadagnoNetto) %></div>
+    <div class="scheda__nota">Dopo <%= euro(totali.totaleDetrazioni) %> di detrazioni</div>
+  </div>
+</div>
+
+<% if (inAttesa > 0 || richiestePrAperte > 0) { %>
+  <div class="pannello">
+    <div class="pannello__corpo">
+      <div class="riga-tra">
+        <div>
+          <h2>Richieste da valutare</h2>
+          <div class="secondario">
+            <% if (inAttesa > 0) { %><%= numero(inAttesa) %> tavoli in attesa<% } %>
+            <% if (inAttesa > 0 && richiestePrAperte > 0) { %> &middot; <% } %>
+            <% if (richiestePrAperte > 0) { %><%= numero(richiestePrAperte) %> proposte di nuovi collaboratori<% } %>
+          </div>
+        </div>
+        <div class="azioni">
+          <% if (inAttesa > 0) { %>
+            <a class="pulsante pulsante--primario" href="/admin/approvazioni">Vai alle approvazioni</a>
+          <% } %>
+          <% if (richiestePrAperte > 0) { %>
+            <a class="pulsante" href="/admin/richieste-pr">Vedi proposte</a>
+          <% } %>
+        </div>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Andamento degli ultimi mesi</h2>
+  </div>
+  <div class="pannello__corpo">
+    <% if (!andamento.length) { %>
+      <div class="vuoto">Nessun tavolo approvato nel periodo.</div>
+    <% } else {
+         const massimo = Math.max.apply(null, andamento.map(function (m) { return m.fatturato; })) || 1; %>
+      <div class="grafico">
+        <% andamento.forEach(function (m) { %>
+          <div class="grafico__colonna">
+            <div class="grafico__valore"><%= numero(Math.round(m.fatturato)) %></div>
+            <div class="grafico__barra"
+                 style="height: <%= Math.max(2, Math.round((m.fatturato / massimo) * 90)) %>px"
+                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.fatturato) %>"></div>
+            <div class="grafico__etichetta"><%= meseIt(m.mese) %></div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Collaboratori piu' attivi</h2>
+    <a href="/admin/report" class="secondario">Report completo</a>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!migliori.length) { %>
+      <div class="vuoto">Nessun collaboratore con tavoli approvati.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Collaboratore</th>
+              <th class="num">Percentuale</th>
+              <th class="num">Fatturato struttura</th>
+              <th class="num">Guadagno netto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% migliori.forEach(function (p) { %>
+              <tr>
+                <td class="principale"><%= p.nickname %></td>
+                <td class="num"><span class="pastiglia"><%= percentuale(p.percentuale) %></span></td>
+                <td class="num"><%= euro(p.fatturatoSottoalbero) %></td>
+                <td class="num <%= segno(p.guadagnoNetto) %>"><%= euro(p.guadagnoNetto) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Ultimi tavoli</h2>
+    <a href="/admin/tavoli" class="secondario">Vedi tutti</a>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!ultimiTavoli.length) { %>
+      <div class="vuoto">Ancora nessun tavolo registrato.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tavolo</th>
+              <th>Collaboratore</th>
+              <th class="num">Persone</th>
+              <th class="num">Importo</th>
+              <th>Stato</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% ultimiTavoli.forEach(function (t) { %>
+              <tr>
+                <td><%= dataIt(t.data) %></td>
+                <td class="principale"><%= t.nome_tavolo %></td>
+                <td><%= t.pr_nickname %></td>
+                <td class="num"><%= numero(t.numero_persone) %></td>
+                <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

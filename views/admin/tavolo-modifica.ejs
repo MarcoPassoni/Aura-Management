@@ -1,0 +1,66 @@
+<div class="pannello">
+  <div class="pannello__testa">
+    <div>
+      <h2>Correggi i dati del tavolo</h2>
+      <div class="secondario">
+        Richiesto da <%= pr ? pr.nickname : 'collaboratore rimosso' %>
+        <% if (pr) { %> (<%= percentuale(pr.percentuale_provvigione) %>)<% } %>
+      </div>
+    </div>
+    <span class="stato <%= classeStato(tavolo.stato) %>"><%= etichettaStato(tavolo.stato) %></span>
+  </div>
+
+  <div class="pannello__corpo">
+    <div class="avviso avviso--informativo">
+      La motivazione e' obbligatoria: viene mostrata al collaboratore, cosi' capisce
+      perche' i suoi numeri sono cambiati.
+    </div>
+
+    <form method="post" action="/admin/approvazioni/<%= tavolo.id %>/modifica" class="modulo">
+      <div class="modulo modulo--due">
+        <div class="campo">
+          <label class="campo__etichetta" for="data">Data</label>
+          <input type="date" id="data" name="data" value="<%= String(tavolo.data).slice(0,10) %>" required>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="nome_tavolo">Nome del tavolo</label>
+          <input type="text" id="nome_tavolo" name="nome_tavolo" value="<%= tavolo.nome_tavolo %>"
+                 required maxlength="100">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="numero_persone">Persone</label>
+          <input type="number" id="numero_persone" name="numero_persone"
+                 value="<%= tavolo.numero_persone %>" min="1" max="500" required>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="spesa_prevista">Importo</label>
+          <input type="number" id="spesa_prevista" name="spesa_prevista"
+                 value="<%= tavolo.spesa_prevista %>" min="0" max="1000000" step="0.01" required>
+          <span class="campo__aiuto">Le provvigioni si ricalcolano da sole.</span>
+        </div>
+      </div>
+
+      <div class="campo">
+        <label class="campo__etichetta" for="omaggi">Omaggi</label>
+        <input type="text" id="omaggi" name="omaggi" value="<%= tavolo.omaggi || '' %>" maxlength="300">
+        <span class="campo__aiuto">Campo descrittivo: non incide sul calcolo delle provvigioni.</span>
+      </div>
+
+      <div class="campo">
+        <label class="campo__etichetta" for="note_tavolo">Note</label>
+        <textarea id="note_tavolo" name="note_tavolo" maxlength="1000"><%= tavolo.note_tavolo || '' %></textarea>
+      </div>
+
+      <div class="campo">
+        <label class="campo__etichetta" for="note_modifiche">Motivazione della modifica</label>
+        <input type="text" id="note_modifiche" name="note_modifiche" required
+               minlength="3" maxlength="500" placeholder="Es. conto finale superiore al preventivo">
+      </div>
+
+      <div class="azioni">
+        <button type="submit" class="pulsante pulsante--primario">Salva le modifiche</button>
+        <a href="/admin/approvazioni" class="pulsante">Annulla</a>
+      </div>
+    </form>
+  </div>
+</div>

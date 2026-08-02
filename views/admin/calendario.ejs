@@ -1,29 +1,69 @@
-<!-- Page header -->
-<div class="page-header">
-  <h1>
-    <i class="fas fa-calendar-alt"></i>
-    Calendario e Attività
-  </h1>
-  <p>Gestisci eventi e attività del team Aura</p>
+<div class="pannello">
+  <div class="pannello__corpo">
+    <form method="get" action="/admin/calendario" class="filtri">
+      <div class="campo">
+        <label class="campo__etichetta" for="mese">Mese</label>
+        <input type="month" id="mese" name="mese" value="<%= mese %>">
+      </div>
+      <button type="submit" class="pulsante pulsante--primario">Mostra</button>
+    </form>
+  </div>
 </div>
 
-<!-- Main content -->
-<div class="admin-card">
-  <div class="card-header">
-    <h2 class="card-title">
-      <i class="fas fa-calendar-week"></i>
-      Calendario Eventi
-    </h2>
+<% if (!giorni.length) { %>
+  <div class="pannello">
+    <div class="vuoto">Nessun tavolo in <%= meseEstesoIt(mese) %>.</div>
   </div>
-  
-  <div style="text-align: center; padding: 3rem;">
-    <div style="font-size: 4rem; color: #667eea; margin-bottom: 1rem;">
-      <i class="fas fa-calendar-plus"></i>
+<% } else { %>
+  <%
+    const totaleMese = giorni.reduce(function (s, g) { return s + g.totale; }, 0);
+    const tavoliMese = giorni.reduce(function (s, g) { return s + g.tavoli.length; }, 0);
+  %>
+
+  <div class="griglia">
+    <div class="scheda">
+      <div class="scheda__etichetta"><%= meseEstesoIt(mese) %></div>
+      <div class="scheda__valore"><%= euro(totaleMese) %></div>
+      <div class="scheda__nota"><%= numero(tavoliMese) %> tavoli in <%= numero(giorni.length) %> serate</div>
     </div>
-    <h3 style="color: #667eea; margin-bottom: 1rem;">Funzionalità in Sviluppo</h3>
-    <p style="color: #666; font-size: 1.1rem;">
-      Il calendario eventi e attività sarà presto disponibile.<br>
-      Questa sezione consentirà di gestire eventi, meeting e attività del team.
-    </p>
   </div>
-</div>
+
+  <% giorni.forEach(function (g) { %>
+    <div class="pannello">
+      <div class="pannello__testa">
+        <div>
+          <h2><%= dataIt(g.data) %></h2>
+          <div class="secondario"><%= numero(g.tavoli.length) %> tavoli</div>
+        </div>
+        <span class="principale"><%= euro(g.totale) %></span>
+      </div>
+
+      <div class="pannello__corpo pannello__corpo--stretto">
+        <div class="tabella-contenitore">
+          <table>
+            <thead>
+              <tr>
+                <th>Tavolo</th>
+                <th>Collaboratore</th>
+                <th class="num">Persone</th>
+                <th class="num">Importo</th>
+                <th>Stato</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% g.tavoli.forEach(function (t) { %>
+                <tr>
+                  <td class="principale"><%= t.nome_tavolo %></td>
+                  <td><%= t.pr_nickname %></td>
+                  <td class="num"><%= numero(t.numero_persone) %></td>
+                  <td class="num"><%= euro(t.spesa_prevista) %></td>
+                  <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% }); %>
+<% } %>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title><%= titolo %> - Aura</title>
+  <link rel="stylesheet" href="/css/aura.css">
+</head>
+<body>
+  <div class="guscio" id="guscio">
+    <button type="button" class="velo" id="velo" aria-label="Chiudi il menu"></button>
+
+    <aside class="barra" id="barra">
+      <div class="barra__marchio">
+        <div class="barra__nome">AUR<span>A</span></div>
+        <div class="barra__ruolo"><%= utente.ruolo === 'admin' ? 'Amministrazione' : 'Promoter' %></div>
+      </div>
+
+      <nav class="barra__menu">
+        <%- include('partials/navigazione') %>
+      </nav>
+
+      <div class="barra__pieduzzo">
+        <div class="barra__utente">
+          <%= utente.nome %> <%= utente.cognome %><br>
+          <span class="secondario"><%= utente.nickname %></span>
+        </div>
+        <form method="post" action="/logout">
+          <button type="submit" class="pulsante pulsante--piccolo pulsante--largo">Esci</button>
+        </form>
+      </div>
+    </aside>
+
+    <main class="contenuto">
+      <header class="intestazione">
+        <button type="button" class="apri-menu" id="apri-menu" aria-label="Apri il menu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="intestazione__titolo">
+          <h1><%= titolo %></h1>
+          <% if (typeof sottotitolo !== 'undefined' && sottotitolo) { %>
+            <div class="intestazione__sottotitolo"><%= sottotitolo %></div>
+          <% } %>
+        </div>
+        <% if (typeof azioniIntestazione !== 'undefined') { %><%- azioniIntestazione %><% } %>
+      </header>
+
+      <div class="pagina">
+        <%- include('partials/messaggi') %>
+        <%- body %>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/aura.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<%
+  // Le voci del menu dipendono dal ruolo. `paginaCorrente` viene passato da
+  // ogni route e determina quale voce risulta selezionata.
+  const voci = utente.ruolo === 'admin'
+    ? [
+        { gruppo: 'Attivita' },
+        { id: 'riepilogo',    testo: 'Riepilogo',     url: '/admin/riepilogo' },
+        { id: 'approvazioni', testo: 'Approvazioni',  url: '/admin/approvazioni', badge: typeof inAttesa !== 'undefined' ? inAttesa : null },
+        { id: 'tavoli',       testo: 'Tavoli',        url: '/admin/tavoli' },
+        { id: 'calendario',   testo: 'Calendario',    url: '/admin/calendario' },
+        { gruppo: 'Struttura' },
+        { id: 'staff',        testo: 'Staff',         url: '/admin/staff' },
+        { id: 'organigramma', testo: 'Organigramma',  url: '/admin/organigramma' },
+        { id: 'richieste-pr', testo: 'Richieste',     url: '/admin/richieste-pr' },
+        { gruppo: 'Economia' },
+        { id: 'report',       testo: 'Report',        url: '/admin/report' },
+        { id: 'guadagni',     testo: 'Guadagni',      url: '/admin/guadagni' },
+        { id: 'pagamenti',    testo: 'Pagamenti',     url: '/admin/pagamenti' },
+        { gruppo: 'Sistema' },
+        { id: 'impostazioni', testo: 'Impostazioni',  url: '/admin/impostazioni' },
+        { id: 'profilo',      testo: 'Il mio profilo', url: '/admin/profilo' }
+      ]
+    : [
+        { gruppo: 'Attivita' },
+        { id: 'dashboard',    testo: 'Dashboard',     url: '/pr/dashboard' },
+        { id: 'prenotazioni', testo: 'Nuova prenotazione', url: '/pr/prenotazioni' },
+        { id: 'tavoli',       testo: 'I miei tavoli', url: '/pr/tavoli' },
+        { gruppo: 'Struttura' },
+        { id: 'organigramma', testo: 'La mia struttura', url: '/pr/organigramma' },
+        { id: 'richiesta-nuovo-pr', testo: 'Proponi collaboratore', url: '/pr/richiesta-nuovo-pr', soloConPoteri: true },
+        { gruppo: 'Economia' },
+        { id: 'provvigioni',  testo: 'Provvigioni',   url: '/pr/provvigioni' },
+        { gruppo: 'Sistema' },
+        { id: 'profilo',      testo: 'Il mio profilo', url: '/pr/profilo' }
+      ];
+%>
+
+<% voci.forEach(function (voce) { %>
+  <% if (voce.gruppo) { %>
+    <div class="barra__gruppo"><%= voce.gruppo %></div>
+  <% } else { %>
+    <%
+      // La voce riservata ai PR con delega resta visibile: se non hanno il
+      // permesso il middleware li rimanda indietro con un messaggio chiaro,
+      // il che e' piu' comprensibile di una voce che sparisce senza spiegazione.
+      const attiva = paginaCorrente === voce.id;
+    %>
+    <a href="<%= voce.url %>" class="barra__voce <%= attiva ? 'barra__voce--attiva' : '' %>"
+       <%= attiva ? 'aria-current="page"' : '' %>>
+      <span><%= voce.testo %></span>
+      <% if (voce.badge) { %><span class="conteggio"><%= voce.badge %></span><% } %>
+    </a>
+  <% } %>
+<% }); %>

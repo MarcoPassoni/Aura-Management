@@ -3,9 +3,13 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 // Path del database - usa volume Railway se disponibile
-const dbPath = process.env.RAILWAY_VOLUME_MOUNT_PATH ? 
-  path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'iconic.db') : 
-  './iconic.db';
+// DB_PATH ha la precedenza: serve ai test e agli script di verifica per
+// lavorare su un database usa e getta senza toccare quello di sviluppo.
+const dbPath = process.env.DB_PATH
+  ? process.env.DB_PATH
+  : process.env.RAILWAY_VOLUME_MOUNT_PATH
+  ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'iconic.db')
+  : './iconic.db';
 
 // [PRODUCTION] Removed console.log('📁 Database path:', dbPath)
 const db = new sqlite3.Database(dbPath);
@@ -298,8 +302,10 @@ function creaAdminDefault() {
   });
 }
 
-initDB();
-creaAdminDefault();
+// NOTA: initDB() e creaAdminDefault() venivano eseguite qui come effetto
+// collaterale del require. Bastava importare il modulo (anche da uno script di
+// manutenzione o da un test) per ricreare le tabelle e inserire un admin con
+// password nota. Ora l'avvio e' esplicito e avviene solo in server.js.
 
 // Funzioni helper per la gestione automatica della crittografia
 

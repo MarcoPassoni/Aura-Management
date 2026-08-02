@@ -1,882 +1,180 @@
-      <!-- Page header -->
-      <div class="page-header">
-        <h1>
-          <i class="fas fa-users"></i>
-          Gestione Staff
-        </h1>
-        <p>Visualizza e gestisci tutti i membri del team Aura</p>
-      </div>
+<% if (anomalie && anomalie.length) { %>
+  <% anomalie.forEach(function (a) { %>
+    <div class="avviso avviso--attenzione" role="alert"><%= a.messaggio %></div>
+  <% }); %>
+<% } %>
 
-      <!-- Alert di successo -->
-      <div id="successAlert" class="alert alert-success" style="display: none;">
-        <i class="fas fa-check-circle"></i>
-        <span id="successMessage">Operazione completata con successo!</span>
-        <button type="button" class="alert-close">&times;</button>
-      </div>
-
-      <!-- Stats -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon admin">
-            <i class="fas fa-user-shield"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number"><%= utenti.filter(u => u.ruolo === 'admin').length %></div>
-            <div class="stat-label">Amministratori</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon pre-admin">
-            <i class="fas fa-user-cog"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number"><%= utenti.filter(u => u.ruolo === 'pre_admin').length %></div>
-            <div class="stat-label">Pre-Admin</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon pr">
-            <i class="fas fa-user-tie"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number"><%= utenti.filter(u => u.ruolo === 'pr').length %></div>
-            <div class="stat-label">PR</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon total">
-            <i class="fas fa-users"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number"><%= utenti.length %></div>
-            <div class="stat-label">Totale Staff</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Search and Filter -->
-      <div class="search-filter-section">
-        <div class="search-filter-container">
-          <div class="search-group">
-            <div class="search-input-wrapper">
-              <i class="fas fa-search search-icon"></i>
-              <input type="text" id="searchInput" placeholder="Cerca per nickname, nome o cognome..." onkeyup="filterTable()">
-            </div>
-          </div>
-          <div class="filter-group">
-            <select id="roleFilter" class="filter-select" onchange="filterTable()">
-              <option value="">🎭 Tutti i ruoli</option>
-              <option value="admin">👑 Admin</option>
-              <option value="pre_admin">⚙️ Pre-Admin</option>
-              <option value="pr">💼 PR</option>
-            </select>
-          </div>
-          <div class="action-group">
-            <a href="/admin/nuovo-utente" class="btn btn-primary">
-              <i class="fas fa-plus"></i>
-              <span>Aggiungi Utente</span>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      <!-- Staff Table -->
-      <div class="table-container">
-        <div class="table-header">
-          <h2 class="table-title">
-            <i class="fas fa-table"></i>
-            Elenco Staff Completo
-          </h2>
-          <div class="table-actions">
-            <button class="btn btn-secondary" onclick="exportData()">
-              <i class="fas fa-download"></i>
-              Esporta
-            </button>
-          </div>
-        </div>
-        
-        <div class="table-responsive">
-          <div class="table-wrapper">
-            <table class="staff-table data-table" id="staffTable">
-            <thead>
-              <tr>
-                <th class="th-id">
-                  <i class="fas fa-hashtag"></i>
-                  ID
-                </th>
-                <th class="th-nickname">
-                  <i class="fas fa-user-tag"></i>
-                  Nickname
-                </th>
-                <th class="th-role">
-                  <i class="fas fa-user-shield"></i>
-                  Ruolo
-                </th>
-                <th class="th-name">
-                  <i class="fas fa-id-card"></i>
-                  Nome Completo
-                </th>
-                <th class="th-phone">
-                  <i class="fas fa-phone"></i>
-                  Telefono
-                </th>
-                <th class="th-percentage">
-                  <i class="fas fa-percentage"></i>
-                  Provvigione
-                </th>
-                <th class="th-powers">
-                  <i class="fas fa-crown"></i>
-                  Poteri
-                </th>
-                <th class="th-parent">
-                  <i class="fas fa-sitemap"></i>
-                  Supervisore
-                </th>
-                <th class="th-subordinates">
-                  <i class="fas fa-users"></i>
-                  Team
-                </th>
-                <th class="th-actions">
-                  <i class="fas fa-cogs"></i>
-                  Azioni
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <% utenti.forEach(u => { %>
-                <tr class="staff-row" data-role="<%= u.ruolo %>" data-id="<%= u.id %>">
-                  <td class="td-id">
-                    <div class="id-badge">
-                      <strong><%= u.id %></strong>
-                    </div>
-                  </td>
-                  <td class="td-nickname">
-                    <div class="nickname-cell">
-                      <div class="user-avatar">
-                        <i class="fas fa-user"></i>
-                      </div>
-                      <strong class="nickname-text"><%= u.nickname %></strong>
-                    </div>
-                  </td>
-                  <td class="td-role">
-                    <span class="role-badge role-<%= u.ruolo %>">
-                      <i class="fas fa-<%= u.ruolo === 'admin' ? 'crown' : u.ruolo === 'pre_admin' ? 'cog' : 'briefcase' %>"></i>
-                      <%= u.ruolo === 'pre_admin' ? 'Pre-Admin' : u.ruolo.toUpperCase() %>
-                    </span>
-                  </td>
-                  <td class="td-name">
-                    <div class="name-cell">
-                      <span class="full-name"><%= u.nome %> <%= u.cognome %></span>
-                    </div>
-                  </td>
-                  <td class="td-phone">
-                    <a href="tel:<%= u.numero_telefono %>" class="phone-link">
-                      <i class="fas fa-phone"></i>
-                      <span><%= u.numero_telefono %></span>
-                    </a>
-                  </td>
-                  <td class="td-percentage">
-                    <% if (u.percentuale_provvigione != null) { %>
-                      <div class="percentage-badge">
-                        <i class="fas fa-percentage"></i>
-                        <strong><%= u.percentuale_provvigione %>%</strong>
-                      </div>
-                    <% } else { %>
-                      <span class="no-data">-</span>
-                    <% } %>
-                  </td>
-                  <td class="td-powers">
-                    <% if (u.ruolo === 'pr') { %>
-                      <span class="power-badge power-<%= u.poteri == 1 ? 'yes' : 'no' %>">
-                        <i class="fas fa-<%= u.poteri == 1 ? 'check-circle' : 'times-circle' %>"></i>
-                        <%= u.poteri == 1 ? 'ABILITATI' : 'DISABILITATI' %>
-                      </span>
-                    <% } else { %>
-                      <span class="no-data">-</span>
-                    <% } %>
-                  </td>
-                  <td class="td-parent">
-                    <% if (u.padre_nickname) { %>
-                      <div class="parent-info">
-                        <i class="fas fa-user-tie"></i>
-                        <strong><%= u.padre_nickname %></strong>
-                      </div>
-                    <% } else { %>
-                      <span class="no-data">-</span>
-                    <% } %>
-                  </td>
-                  <td class="td-subordinates">
-                    <% const subordinati = figli.filter(f => f.padre_id === u.id); %>
-                    <% if (subordinati.length > 0) { %>
-                      <details class="subordinates-dropdown">
-                        <summary class="subordinates-summary">
-                          <i class="fas fa-users"></i>
-                          <span class="count-badge"><%= subordinati.length %></span>
-                          <span class="count-text">
-                            member<%= subordinati.length === 1 ? '' : 's' %>
-                          </span>
-                          <i class="fas fa-chevron-down dropdown-arrow"></i>
-                        </summary>
-                        <div class="subordinates-content">
-                          <% subordinati.forEach(f => { %>
-                            <div class="subordinate-item">
-                              <div class="subordinate-avatar">
-                                <i class="fas fa-user"></i>
-                              </div>
-                              <div class="subordinate-info">
-                                <strong class="subordinate-name"><%= f.nickname %></strong>
-                                <span class="subordinate-role role-<%= f.ruolo %>">
-                                  <%= f.ruolo === 'pre_admin' ? 'Pre-Admin' : f.ruolo.toUpperCase() %>
-                                </span>
-                              </div>
-                            </div>
-                          <% }) %>
-                        </div>
-                      </details>
-                    <% } else { %>
-                      <div class="no-team">
-                        <i class="fas fa-user"></i>
-                        <span>Solo</span>
-                      </div>
-                    <% } %>
-                  </td>
-                  <td class="td-actions">
-                    <div class="action-buttons">
-                      <button class="action-btn btn-edit edit-btn" 
-                              data-id="<%= u.id %>"
-                              title="Modifica utente">
-                        <i class="fas fa-edit"></i>
-                        <span>Modifica</span>
-                      </button>
-                      <% if (u.ruolo !== 'admin' || utenti.filter(admin => admin.ruolo === 'admin').length > 1) { %>
-                        <button type="button" class="action-btn btn-delete"
-                          data-id="<%= u.id %>" data-nickname="<%= u.nickname %>" data-ruolo="<%= u.ruolo %>"
-                          title="Elimina utente">
-                          <i class="fas fa-trash"></i>
-                          <span>Elimina</span>
-                        </button>
-                      <% } %>
-                    </div>
-                  </td>
-                </tr>
-              <% }); %>
-            </tbody>
-          </table>
-          </div>
-        </div>
-          
-        <div class="table-footer">
-            <div class="table-info">
-              <i class="fas fa-info-circle"></i>
-              Visualizzati <span id="visibleRows"><%= utenti.length %></span> di <span id="totalRows"><%= utenti.length %></span> membri
-            </div>
-          </div>
-        </div>
-
-        <!-- Mobile Card Layout (shown only on mobile) -->
-        <div class="mobile-data-cards">
-          <% utenti.forEach(u => { %>
-            <div class="mobile-data-card staff-card" data-role="<%= u.ruolo %>" data-search="<%= u.nickname %> <%= u.nome %> <%= u.cognome %>">
-              <div class="card-header">
-                <div class="card-title">
-                  <div class="user-avatar">
-                    <i class="fas fa-user"></i>
-                  </div>
-                  <div class="user-info">
-                    <div class="nickname-text"><%= u.nickname %></div>
-                    <div class="role-badge role-<%= u.ruolo %>">
-                      <% if (u.ruolo === 'admin') { %>
-                        <i class="fas fa-crown"></i> ADMIN
-                      <% } else if (u.ruolo === 'pre_admin') { %>
-                        <i class="fas fa-user-cog"></i> PRE-ADMIN
-                      <% } else { %>
-                        <i class="fas fa-user-tie"></i> PR
-                      <% } %>
-                    </div>
-                  </div>
-                </div>
-                <div class="id-badge">ID: <%= u.id %></div>
-              </div>
-              
-              <div class="card-body">
-                <div class="field">
-                  <div class="field-label">Nome Completo</div>
-                  <div class="field-value"><%= u.nome %> <%= u.cognome %></div>
-                </div>
-                
-                <div class="field">
-                  <div class="field-label">Telefono</div>
-                  <div class="field-value">
-                    <% if (u.numero_telefono) { %>
-                      <a href="tel:<%= u.numero_telefono %>" class="phone-link">
-                        <i class="fas fa-phone"></i>
-                        <%= u.numero_telefono %>
-                      </a>
-                    <% } else { %>
-                      <span class="no-data">Non disponibile</span>
-                    <% } %>
-                  </div>
-                </div>
-                
-                <% if (u.ruolo === 'pr' && u.percentuale_provvigione) { %>
-                <div class="field">
-                  <div class="field-label">Provvigione</div>
-                  <div class="field-value">
-                    <div class="percentage-badge">
-                      <i class="fas fa-percentage"></i>
-                      <%= u.percentuale_provvigione %>%
-                    </div>
-                  </div>
-                </div>
-                <% } %>
-                
-                <div class="field">
-                  <div class="field-label">Potere Operativo</div>
-                  <div class="field-value">
-                    <div class="power-badge power-<%= u.potere_operativo ? 'yes' : 'no' %>">
-                      <% if (u.potere_operativo) { %>
-                        <i class="fas fa-check-circle"></i> Sì
-                      <% } else { %>
-                        <i class="fas fa-times-circle"></i> No
-                      <% } %>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="field">
-                  <div class="field-label">Supervisor</div>
-                  <div class="field-value">
-                    <% if (u.padre_nickname) { %>
-                      <div class="parent-info">
-                        <i class="fas fa-user-tie"></i>
-                        <%= u.padre_nickname %>
-                      </div>
-                    <% } else { %>
-                      <span class="no-data">Nessuno</span>
-                    <% } %>
-                  </div>
-                </div>
-                
-                <div class="field field-full-width">
-                  <div class="field-label">Team</div>
-                  <div class="field-value">
-                    <% const subordinati = figli.filter(f => f.padre_id === u.id); %>
-                    <% if (subordinati.length > 0) { %>
-                      <div class="team-summary">
-                        <span class="count-badge"><%= subordinati.length %></span>
-                        <span class="count-text">
-                          membro<%= subordinati.length === 1 ? '' : 's' %> nel team
-                        </span>
-                      </div>
-                      <div class="team-members">
-                        <% subordinati.slice(0, 3).forEach(f => { %>
-                          <span class="team-member-badge">
-                            <i class="fas fa-user"></i>
-                            <%= f.nickname %>
-                          </span>
-                        <% }) %>
-                        <% if (subordinati.length > 3) { %>
-                          <span class="team-member-badge more">
-                            +<%= subordinati.length - 3 %>
-                          </span>
-                        <% } %>
-                      </div>
-                    <% } else { %>
-                      <div class="no-team">
-                        <i class="fas fa-user"></i>
-                        <span>Lavora da solo</span>
-                      </div>
-                    <% } %>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="card-actions">
-                <button class="btn btn-primary-mobile edit-btn" 
-                        data-id="<%= u.id %>"
-                        title="Modifica utente">
-                  <i class="fas fa-edit"></i>
-                  Modifica
-                </button>
-                <% if (u.ruolo !== 'admin' || utenti.filter(admin => admin.ruolo === 'admin').length > 1) { %>
-                      <button type="button" class="btn btn-danger-mobile"
-                        data-id="<%= u.id %>" data-nickname="<%= u.nickname %>" data-ruolo="<%= u.ruolo %>"
-                        title="Elimina utente">
-                    <i class="fas fa-trash"></i>
-                    Elimina
-                  </button>
-                <% } %>
-              </div>
-            </div>
-          <% }); %>
-        </div>
-      </div>
-    </div>
-  </main>
-
-  <!-- Modal modifica utente -->
-  <div id="editModal" class="modal" style="display: none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2><i class="fas fa-user-edit"></i> Modifica Utente</h2>
-        <span class="close">&times;</span>
-      </div>
-      
-      <form id="editForm" method="POST" action="/admin/staff/edit">
-        <input type="hidden" id="edit-id" name="id">
-        <input type="hidden" id="edit-ruolo" name="ruolo">
-        
-        <div class="modal-body">
-          <div class="form-row" style="gap: 0.8rem;">
-            <div class="form-group" style="flex: 1; min-width: 0;">
-              <label for="edit-nickname" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                <i class="fas fa-at"></i> Nickname *
-              </label>
-              <input type="text" id="edit-nickname" name="nickname" required maxlength="50" style="padding: 0.5rem; font-size: 0.9rem;">
-            </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 0;">
-              <label for="edit-nome" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                <i class="fas fa-user"></i> Nome *
-              </label>
-              <input type="text" id="edit-nome" name="nome" required maxlength="50" style="padding: 0.5rem; font-size: 0.9rem;">
-            </div>
-          </div>
-          
-          <div class="form-row" style="gap: 0.8rem;">
-            <div class="form-group" style="flex: 1; min-width: 0;">
-              <label for="edit-cognome" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                <i class="fas fa-user"></i> Cognome *
-              </label>
-              <input type="text" id="edit-cognome" name="cognome" required maxlength="50" style="padding: 0.5rem; font-size: 0.9rem;">
-            </div>
-            
-            <div class="form-group" style="flex: 1; min-width: 0;">
-              <label for="edit-telefono" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                <i class="fas fa-phone"></i> Telefono *
-              </label>
-              <input type="tel" id="edit-telefono" name="numero_telefono" required pattern="[0-9]{8,15}" style="padding: 0.5rem; font-size: 0.9rem;">
-            </div>
-          </div>
-          
-          <div class="form-group">
-            <label for="edit-password" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-              <i class="fas fa-lock"></i> Password
-              <small style="font-size: 0.8rem;">(lascia vuoto per non cambiare)</small>
-            </label>
-            <div class="password-input-wrapper">
-              <input type="password" id="edit-password" name="password" minlength="6" style="padding: 0.5rem; font-size: 0.9rem;">
-              <button type="button" class="password-toggle" data-target="edit-password">
-                <i class="fas fa-eye"></i>
-              </button>
-            </div>
-          </div>
-          
-          <!-- Campo padre - solo per pre_admin e pr -->
-          <div id="padre-field" style="display: none;">
-            <div class="form-group">
-              <label for="edit-padre" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                <i class="fas fa-user-tie"></i> Padre/Superiore
-              </label>
-              <select id="edit-padre" name="padre_id" style="padding: 0.5rem; font-size: 0.9rem;">
-                <option value="">Nessun padre</option>
-                <!-- Opzioni popolate dinamicamente -->
-              </select>
-            </div>
-          </div>
-          
-          <!-- Campi specifici PR -->
-          <div id="pr-fields" style="display: none;">
-            <div class="form-row" style="gap: 0.8rem; align-items: flex-end;">
-              <div class="form-group" style="flex: 1; min-width: 0;">
-                <label for="edit-percentuale" style="font-size: 0.9rem; margin-bottom: 0.3rem;">
-                  <i class="fas fa-percentage"></i> % Provvigione
-                </label>
-                <input type="number" id="edit-percentuale" name="percentuale_provvigione" 
-                       min="0" max="100" step="0.01" placeholder="0.00" style="padding: 0.5rem; font-size: 0.9rem;">
-              </div>
-              
-              <div class="form-group checkbox-group" style="flex: 0 0 auto; margin-bottom: 0;">
-                <input type="hidden" name="poteri" value="0">
-                <label class="checkbox-label" style="font-size: 0.9rem; padding: 0.5rem 0.8rem;">
-                  <input type="checkbox" id="edit-poteri" name="poteri" value="1">
-                  <span class="checkmark"></span>
-                  <i class="fas fa-crown"></i> Poteri PR
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="modal-footer" style="padding-top: 1rem; gap: 0.5rem;">
-          <button type="button" class="btn btn-secondary modal-cancel" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">
-              <i class="fas fa-times"></i> Annulla
-            </button>
-          <button type="submit" class="btn btn-primary" style="padding: 0.6rem 1.2rem; font-size: 0.9rem;">
-            <i class="fas fa-save"></i> Salva
-          </button>
-        </div>
-      </form>
-    </div>
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Nuovo collaboratore</h2>
+    <button type="button" class="pulsante pulsante--piccolo" data-apre="modulo-nuovo" aria-expanded="false">
+      Apri il modulo
+    </button>
   </div>
 
-  <!-- Dati utenti per lo script esterno - CSP compliant -->
-  <div id="staff-data-storage" style="display: none;" data-utenti='<%- JSON.stringify(utenti) %>'></div>
+  <div class="pannello__corpo" id="modulo-nuovo" hidden>
+    <form method="post" action="/admin/staff/crea" class="modulo" autocomplete="off">
+      <div class="modulo modulo--due">
+        <div class="campo">
+          <label class="campo__etichetta" for="n-nome">Nome</label>
+          <input type="text" id="n-nome" name="nome" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-cognome">Cognome</label>
+          <input type="text" id="n-cognome" name="cognome" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-tel">Telefono</label>
+          <input type="tel" id="n-tel" name="numero_telefono" required maxlength="20">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-nick">Nickname</label>
+          <input type="text" id="n-nick" name="nickname" required maxlength="30" spellcheck="false">
+          <span class="campo__aiuto">Serve per accedere. Lettere, numeri, punto, trattino.</span>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-pwd">Password iniziale</label>
+          <input type="text" id="n-pwd" name="password" required maxlength="200">
+          <span class="campo__aiuto">Almeno 10 caratteri, con una lettera e un numero.</span>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-padre">Responsabile</label>
+          <select id="n-padre" name="padre_id" required>
+            <% possibiliPadri.forEach(function (p) { %>
+              <option value="<%= p.valore %>"><%= p.etichetta %></option>
+            <% }); %>
+          </select>
+          <span class="campo__aiuto">Chi gli paghera' le provvigioni.</span>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="n-perc">Percentuale provvigione</label>
+          <input type="number" id="n-perc" name="percentuale_provvigione"
+                 min="0" max="100" step="0.01" value="0" required>
+          <span class="campo__aiuto">Non puo' superare quella del responsabile.</span>
+        </div>
+      </div>
 
-  <!-- Script esterno CSP-compliant -->
-  <script src="/js/staff-management.js"></script>
+      <div class="campo campo--riga">
+        <input type="checkbox" id="n-poteri" name="poteri">
+        <label for="n-poteri">Puo' proporre nuovi collaboratori</label>
+      </div>
 
-  <!-- Mobile Staff Card Styles -->
-  <style>
-    /* ===== MOBILE STAFF CARDS ENHANCEMENTS ===== */
-    
-    .mobile-data-cards {
-      display: none;
-    }
+      <div class="azioni">
+        <button type="submit" class="pulsante pulsante--primario">Crea collaboratore</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-    @media (max-width: 768px) {
-      /* Hide table on mobile, show cards */
-      .table-container .table-responsive {
-        display: none;
-      }
-      
-      .mobile-data-cards {
-        display: block;
-        padding: 0;
-      }
-      
-      .staff-card {
-        background: white;
-        border-radius: 16px;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        border: 1px solid #e2e8f0;
-        transition: all 0.3s ease;
-      }
-      
-      .staff-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-      }
-      
-      .staff-card .card-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
-        padding-bottom: 1rem;
-        border-bottom: 1px solid #e2e8f0;
-      }
-      
-      .staff-card .card-title {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex: 1;
-      }
-      
-      .staff-card .user-avatar {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #D4AF37;
-        font-size: 1.1rem;
-        border: 2px solid #D4AF37;
-        flex-shrink: 0;
-      }
-      
-      .staff-card .user-info {
-        flex: 1;
-      }
-      
-      .staff-card .nickname-text {
-        font-weight: 700;
-        font-size: 1.1rem;
-        color: #1a1a1a;
-        margin-bottom: 0.25rem;
-      }
-      
-      .staff-card .role-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.3rem 0.6rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        border: 1px solid;
-      }
-      
-      .staff-card .id-badge {
-        background: rgba(212, 175, 55, 0.1);
-        color: #B8860B;
-        padding: 0.3rem 0.6rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.75rem;
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        flex-shrink: 0;
-      }
-      
-      .staff-card .card-body {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 1rem;
-      }
-      
-      .staff-card .field-full-width {
-        grid-column: 1 / -1;
-      }
-      
-      .staff-card .field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.4rem;
-      }
-      
-      .staff-card .field-label {
-        color: #6b7280;
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-      }
-      
-      .staff-card .field-value {
-        color: #1a1a1a;
-        font-weight: 500;
-        font-size: 0.9rem;
-      }
-      
-      .staff-card .phone-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        color: #1a1a1a !important;
-        text-decoration: none;
-        padding: 0.4rem 0.6rem;
-        border-radius: 8px;
-        background: rgba(212, 175, 55, 0.1);
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        font-size: 0.85rem;
-        transition: all 0.3s ease;
-      }
-      
-      .staff-card .phone-link:hover {
-        background: rgba(212, 175, 55, 0.2);
-        transform: translateY(-1px);
-      }
-      
-      .staff-card .phone-link i {
-        color: #D4AF37;
-        font-size: 0.8rem;
-      }
-      
-      .staff-card .percentage-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        background: rgba(34, 139, 34, 0.1);
-        color: #228B22;
-        padding: 0.4rem 0.6rem;
-        border-radius: 8px;
-        font-weight: 600;
-        border: 1px solid rgba(34, 139, 34, 0.2);
-        font-size: 0.85rem;
-      }
-      
-      .staff-card .power-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.4rem 0.6rem;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        border: 1px solid;
-      }
-      
-      .staff-card .power-badge.power-yes {
-        background: rgba(34, 139, 34, 0.1);
-        color: #228B22;
-        border-color: rgba(34, 139, 34, 0.3);
-      }
-      
-      .staff-card .power-badge.power-no {
-        background: rgba(220, 38, 38, 0.1);
-        color: #DC2626;
-        border-color: rgba(220, 38, 38, 0.3);
-      }
-      
-      .staff-card .parent-info {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        color: #1a1a1a;
-        font-weight: 500;
-        background: rgba(212, 175, 55, 0.1);
-        padding: 0.4rem 0.6rem;
-        border-radius: 8px;
-        border: 1px solid rgba(212, 175, 55, 0.2);
-        font-size: 0.85rem;
-      }
-      
-      .staff-card .parent-info i {
-        color: #D4AF37;
-        font-size: 0.8rem;
-      }
-      
-      .staff-card .team-summary {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-      }
-      
-      .staff-card .count-badge {
-        background: #D4AF37;
-        color: #1a1a1a;
-        padding: 0.2rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        min-width: 24px;
-        text-align: center;
-      }
-      
-      .staff-card .count-text {
-        color: #1a1a1a;
-        font-size: 0.85rem;
-        font-weight: 500;
-      }
-      
-      .staff-card .team-members {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-      }
-      
-      .staff-card .team-member-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.3rem;
-        background: rgba(107, 114, 128, 0.1);
-        color: #374151;
-        padding: 0.25rem 0.5rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 500;
-        border: 1px solid rgba(107, 114, 128, 0.2);
-      }
-      
-      .staff-card .team-member-badge.more {
-        background: rgba(212, 175, 55, 0.1);
-        color: #B8860B;
-        border-color: rgba(212, 175, 55, 0.2);
-        font-weight: 600;
-      }
-      
-      .staff-card .team-member-badge i {
-        font-size: 0.7rem;
-        color: #6b7280;
-      }
-      
-      .staff-card .no-team,
-      .staff-card .no-data {
-        display: flex;
-        align-items: center;
-        gap: 0.4rem;
-        color: #6b7280;
-        font-style: italic;
-        font-size: 0.85rem;
-      }
-      
-      .staff-card .no-team i,
-      .staff-card .no-data i {
-        font-size: 0.8rem;
-      }
-      
-      .staff-card .card-actions {
-        padding-top: 1rem;
-        border-top: 1px solid #e2e8f0;
-        display: flex;
-        gap: 0.75rem;
-      }
-      
-      .staff-card .card-actions .btn {
-        flex: 1;
-        padding: 0.6rem 1rem;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        margin-bottom: 0;
-        min-height: 44px;
-      }
-      
-      .staff-card .card-actions .btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-      }
-      
-      /* Search and filter also work with mobile cards */
-      .staff-card[style*="display: none"] {
-        display: none !important;
-      }
-      
-      /* Table footer adjustments */
-      .table-footer {
-        margin-top: 1rem;
-        border-radius: 12px;
-      }
-    }
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Struttura</h2>
+    <span class="secondario"><%= numero(staff.length) %> collaboratori</span>
+  </div>
 
-    /* Small mobile screens */
-    @media (max-width: 480px) {
-      .staff-card {
-        margin: 0 -0.5rem 1rem;
-        border-radius: 12px;
-        padding: 1rem;
-      }
-      
-      .staff-card .card-body {
-        grid-template-columns: 1fr;
-        gap: 0.75rem;
-      }
-      
-      .staff-card .card-header {
-        flex-direction: column;
-        gap: 0.75rem;
-        align-items: stretch;
-      }
-      
-      .staff-card .card-title {
-        justify-content: flex-start;
-      }
-      
-      .staff-card .id-badge {
-        align-self: flex-start;
-      }
-      
-      .staff-card .card-actions {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      
-      .staff-card .card-actions .btn {
-        width: 100%;
-      }
-    }
-  </style>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!staff.length) { %>
+      <div class="vuoto">Nessun collaboratore. Creane uno con il modulo qui sopra.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Collaboratore</th>
+              <th>Responsabile</th>
+              <th class="num">Percentuale</th>
+              <th class="num">Fatturato</th>
+              <th class="num">Da ricevere</th>
+              <th>Stato</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <% staff.forEach(function (p) { %>
+              <tr>
+                <td class="<%= rientro(p.livello) %>">
+                  <div class="principale"><%= p.nickname %></div>
+                  <div class="secondario"><%= p.nome %> <%= p.cognome %></div>
+                </td>
+                <td class="secondario"><%= p.padreNickname || 'Amministratore' %></td>
+                <td class="num"><span class="pastiglia"><%= percentuale(p.percentuale) %></span></td>
+                <td class="num"><%= euro(p.fatturatoSottoalbero) %></td>
+                <td class="num <%= segno(p.saldoDaRicevere) %>"><%= euro(p.saldoDaRicevere) %></td>
+                <td>
+                  <% if (!p.attivo) { %>
+                    <span class="stato stato--neutro">Disattivato</span>
+                  <% } else if (p.poteri) { %>
+                    <span class="stato stato--approvato">Con delega</span>
+                  <% } else { %>
+                    <span class="stato stato--neutro">Attivo</span>
+                  <% } %>
+                </td>
+                <td>
+                  <button type="button" class="pulsante pulsante--piccolo"
+                          data-apre="modifica-<%= p.id %>" aria-expanded="false">Modifica</button>
+                </td>
+              </tr>
 
+              <tr id="modifica-<%= p.id %>" hidden>
+                <td colspan="7" style="background:var(--superficie-alt)">
+                  <form method="post" action="/admin/staff/<%= p.id %>/modifica" class="modulo" autocomplete="off">
+                    <div class="modulo modulo--due">
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-nome-<%= p.id %>">Nome</label>
+                        <input type="text" id="m-nome-<%= p.id %>" name="nome" value="<%= p.nome %>" maxlength="50">
+                      </div>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-cognome-<%= p.id %>">Cognome</label>
+                        <input type="text" id="m-cognome-<%= p.id %>" name="cognome" value="<%= p.cognome %>" maxlength="50">
+                      </div>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-tel-<%= p.id %>">Telefono</label>
+                        <input type="tel" id="m-tel-<%= p.id %>" name="numero_telefono" value="<%= p.numero_telefono %>" maxlength="20">
+                      </div>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-nick-<%= p.id %>">Nickname</label>
+                        <input type="text" id="m-nick-<%= p.id %>" name="nickname" value="<%= p.nickname %>" maxlength="30">
+                      </div>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-perc-<%= p.id %>">Percentuale</label>
+                        <input type="number" id="m-perc-<%= p.id %>" name="percentuale_provvigione"
+                               value="<%= p.percentuale %>" min="0" max="100" step="0.01">
+                      </div>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="m-pwd-<%= p.id %>">Nuova password</label>
+                        <input type="text" id="m-pwd-<%= p.id %>" name="password" maxlength="200"
+                               placeholder="Lascia vuoto per non cambiarla">
+                      </div>
+                    </div>
+
+                    <div class="campo campo--riga">
+                      <input type="checkbox" id="m-poteri-<%= p.id %>" name="poteri" <%= p.poteri ? 'checked' : '' %>>
+                      <label for="m-poteri-<%= p.id %>">Puo' proporre nuovi collaboratori</label>
+                    </div>
+
+                    <div class="azioni">
+                      <button type="submit" class="pulsante pulsante--primario">Salva</button>
+                    </div>
+                  </form>
+
+                  <div class="azioni" style="margin-top:.75rem">
+                    <% if (p.attivo) { %>
+                      <form method="post" action="/admin/staff/<%= p.id %>/disattiva"
+                            data-conferma="Disattivare <%= p.nickname %>? Non potra' piu' accedere, ma lo storico dei suoi tavoli resta.">
+                        <button type="submit" class="pulsante pulsante--pericolo pulsante--piccolo">Disattiva</button>
+                      </form>
+                    <% } else { %>
+                      <form method="post" action="/admin/staff/<%= p.id %>/riattiva">
+                        <button type="submit" class="pulsante pulsante--piccolo">Riattiva</button>
+                      </form>
+                    <% } %>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,57 @@
+<div class="griglia">
+  <div class="scheda">
+    <div class="scheda__etichetta">La mia percentuale</div>
+    <div class="scheda__valore"><%= percentuale(pr.percentuale_provvigione) %></div>
+    <div class="scheda__nota">La decide l'amministrazione</div>
+  </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Il mio responsabile</div>
+    <div class="scheda__valore" style="font-size:1.1rem"><%= responsabile %></div>
+  </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Delega</div>
+    <div class="scheda__valore" style="font-size:1.1rem">
+      <%= pr.poteri ? 'Posso proporre collaboratori' : 'Non attiva' %>
+    </div>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>I miei dati</h2>
+  </div>
+
+  <div class="pannello__corpo">
+    <form method="post" action="/pr/profilo" class="modulo" autocomplete="off">
+      <div class="modulo modulo--due">
+        <div class="campo">
+          <label class="campo__etichetta" for="nome">Nome</label>
+          <input type="text" id="nome" name="nome" value="<%= pr.nome %>" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="cognome">Cognome</label>
+          <input type="text" id="cognome" name="cognome" value="<%= pr.cognome %>" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="tel">Telefono</label>
+          <input type="tel" id="tel" name="numero_telefono" value="<%= pr.numero_telefono %>" required maxlength="20">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="nick">Nickname</label>
+          <input type="text" id="nick" value="<%= pr.nickname %>" disabled>
+        </div>
+      </div>
+
+      <div class="campo" style="max-width:340px">
+        <label class="campo__etichetta" for="pwd">Nuova password</label>
+        <input type="password" id="pwd" name="password" maxlength="200"
+               autocomplete="new-password" placeholder="Lascia vuoto per non cambiarla">
+        <span class="campo__aiuto">Almeno 10 caratteri, con una lettera e un numero.</span>
+      </div>
+
+      <div class="azioni">
+        <button type="submit" class="pulsante pulsante--primario">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,45 @@
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>I miei dati</h2>
+  </div>
+
+  <div class="pannello__corpo">
+    <div class="avviso avviso--informativo">
+      Puoi modificare solo il tuo profilo. Nome, cognome e telefono sono cifrati
+      nel database.
+    </div>
+
+    <form method="post" action="/admin/profilo" class="modulo" autocomplete="off">
+      <div class="modulo modulo--due">
+        <div class="campo">
+          <label class="campo__etichetta" for="nome">Nome</label>
+          <input type="text" id="nome" name="nome" value="<%= admin.nome %>" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="cognome">Cognome</label>
+          <input type="text" id="cognome" name="cognome" value="<%= admin.cognome %>" required maxlength="50">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="tel">Telefono</label>
+          <input type="tel" id="tel" name="numero_telefono" value="<%= admin.numero_telefono %>" required maxlength="20">
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="nick">Nickname</label>
+          <input type="text" id="nick" value="<%= admin.nickname %>" disabled>
+          <span class="campo__aiuto">Il nickname di accesso non e' modificabile.</span>
+        </div>
+      </div>
+
+      <div class="campo" style="max-width:340px">
+        <label class="campo__etichetta" for="pwd">Nuova password</label>
+        <input type="password" id="pwd" name="password" maxlength="200"
+               autocomplete="new-password" placeholder="Lascia vuoto per non cambiarla">
+        <span class="campo__aiuto">Almeno 10 caratteri, con una lettera e un numero.</span>
+      </div>
+
+      <div class="azioni">
+        <button type="submit" class="pulsante pulsante--primario">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>

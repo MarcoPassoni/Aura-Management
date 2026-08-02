@@ -1,0 +1,73 @@
+<div class="avviso avviso--informativo">
+  Questi valori erano scritti dentro il codice e per cambiarli serviva un programmatore.
+  Ora li gestisci da qui: valgono solo per la tua struttura.
+</div>
+
+<form method="post" action="/admin/impostazioni">
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Quota del locale</h2>
+    </div>
+    <div class="pannello__corpo">
+      <div class="campo" style="max-width:260px">
+        <label class="campo__etichetta" for="quota_locale">Percentuale che resta al locale</label>
+        <input type="number" id="quota_locale" name="quota_locale"
+               value="<%= impostazioni.quotaLocale %>" min="0" max="100" step="0.01" required>
+        <span class="campo__aiuto">
+          Il margine che ti resta prima delle provvigioni e' quindi
+          <strong><%= percentuale(impostazioni.quotaAdmin) %></strong> dell'incasso.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pannello">
+    <div class="pannello__testa">
+      <div>
+        <h2>Detrazioni sul guadagno lordo</h2>
+        <div class="secondario">Si applicano dopo aver sottratto le provvigioni.</div>
+      </div>
+      <button type="button" class="pulsante pulsante--piccolo" id="aggiungi-detrazione">
+        Aggiungi voce
+      </button>
+    </div>
+
+    <div class="pannello__corpo">
+      <div id="detrazioni">
+        <% impostazioni.detrazioni.forEach(function (d) { %>
+          <div class="filtri" style="margin-bottom:.6rem">
+            <div class="campo" style="flex:2">
+              <label class="campo__etichetta">Voce</label>
+              <input type="text" name="detrazione_nome" value="<%= d.nome %>" maxlength="40" required>
+            </div>
+            <div class="campo" style="flex:1">
+              <label class="campo__etichetta">Percentuale</label>
+              <input type="number" name="detrazione_percentuale" value="<%= d.percentuale %>"
+                     min="0" max="100" step="0.01" required>
+            </div>
+            <button type="button" class="pulsante pulsante--pericolo pulsante--piccolo" data-rimuovi>
+              Rimuovi
+            </button>
+          </div>
+        <% }); %>
+      </div>
+
+      <% if (!impostazioni.detrazioni.length) { %>
+        <p class="secondario">Nessuna detrazione configurata.</p>
+      <% } %>
+
+      <div class="riga-tra" style="margin-top:1rem; padding-top:.75rem; border-top:1px solid var(--bordo)">
+        <span class="campo__etichetta">Totale detrazioni</span>
+        <span id="totale-detrazioni" class="num principale">0%</span>
+      </div>
+      <p class="campo__aiuto" style="margin:.35rem 0 0">
+        Il totale non puo' superare il 100%: significherebbe versare piu' di quanto guadagnato.
+      </p>
+    </div>
+  </div>
+
+  <div class="azioni">
+    <button type="submit" class="pulsante pulsante--primario">Salva le impostazioni</button>
+    <a href="/admin/guadagni" class="pulsante">Vedi l'effetto sui guadagni</a>
+  </div>
+</form>

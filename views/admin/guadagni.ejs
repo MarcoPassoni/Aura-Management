@@ -1,1086 +1,126 @@
-      <!-- Page header -->
-      <div class="page-header">
-        <h1>
-          <i class="fas fa-chart-line"></i>
-          Guadagni e Ricavi
-        </h1>
-        <p>Monitora i ricavi e le performance finanziarie di Aura</p>
-        
-        <!-- Azioni rapide header -->
-        <div class="mt-3">
-          <button class="btn btn-light btn-sm me-2" onclick="aggiornaDati()" title="Aggiorna dati">
-            <i class="fas fa-sync-alt"></i> Aggiorna
-          </button>
-          <button class="btn btn-light btn-sm me-2" onclick="esportaDati()" title="Esporta report">
-            <i class="fas fa-download"></i> Esporta
-          </button>
-          <a href="/admin/staff" class="btn btn-outline-light btn-sm">
-            <i class="fas fa-users"></i> Gestisci Staff
-          </a>
-        </div>
+<% if (avvisi && avvisi.length) { %>
+  <% avvisi.forEach(function (a) { %>
+    <div class="avviso avviso--attenzione" role="alert"><%= a %></div>
+  <% }); %>
+<% } %>
+
+<div class="pannello">
+  <div class="pannello__corpo">
+    <form method="get" action="/admin/guadagni" class="filtri">
+      <div class="campo">
+        <label class="campo__etichetta" for="f-da">Dal</label>
+        <input type="date" id="f-da" name="da" value="<%= filtri.da %>">
       </div>
-
-      <!-- Stats overview -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
-            <i class="fas fa-euro-sign"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">€<%= totali.fatturatoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
-            <div class="stat-label">Fatturato Totale</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #20c997);">
-            <i class="fas fa-hand-holding-usd"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">€<%= totali.guadagnoLordoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
-            <div class="stat-label">Guadagno Lordo</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #fd7e14);">
-            <i class="fas fa-minus-circle"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">€<%= totali.detrazioniTotali.totale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
-            <div class="stat-label">Detrazioni Totali</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon" style="background: linear-gradient(135deg, #6f42c1, #e83e8c);">
-            <i class="fas fa-coins"></i>
-          </div>
-          <div class="stat-content">
-            <div class="stat-number">€<%= totali.guadagnoNettoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></div>
-            <div class="stat-label">Guadagno Netto</div>
-          </div>
-        </div>
+      <div class="campo">
+        <label class="campo__etichetta" for="f-a">Al</label>
+        <input type="date" id="f-a" name="a" value="<%= filtri.a %>">
       </div>
+      <button type="submit" class="pulsante pulsante--primario">Filtra</button>
+      <a href="/admin/guadagni" class="pulsante">Tutto lo storico</a>
+    </form>
+  </div>
+</div>
 
-      <!-- Riepilogo detrazioni -->
-      <div class="content-section">
-        <div class="section-header">
-          <h2>
-            <i class="fas fa-chart-pie"></i>
-            Detrazioni Dettagliate
-          </h2>
-        </div>
-        
-        <div class="row">
-          <div class="col-md-4">
-            <div class="card detrazione-card">
-              <div class="card-body text-center">
-                <div class="detrazione-icon passo">
-                  <i class="fas fa-walking"></i>
-                </div>
-                <h5>Passo (20%)</h5>
-                <h3 class="text-warning">€<%= totali.detrazioniTotali.passo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></h3>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card detrazione-card">
-              <div class="card-body text-center">
-                <div class="detrazione-icon cassa">
-                  <i class="fas fa-cash-register"></i>
-                </div>
-                <h5>Cassa (15%)</h5>
-                <h3 class="text-info">€<%= totali.detrazioniTotali.cassa.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></h3>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="card detrazione-card">
-              <div class="card-body text-center">
-                <div class="detrazione-icon cuzzo">
-                  <i class="fas fa-user-tie"></i>
-                </div>
-                <h5>Cuzzo (15%)</h5>
-                <h3 class="text-success">€<%= totali.detrazioniTotali.cuzzo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></h3>
-              </div>
-            </div>
-          </div>
-        </div>
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Conto economico</h2>
+    <a href="/admin/impostazioni" class="secondario">Modifica quote e detrazioni</a>
+  </div>
+
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <div class="tabella-contenitore">
+      <table>
+        <tbody>
+          <tr>
+            <td class="principale">Incasso dei tavoli</td>
+            <td class="secondario">Somma di tutti i tavoli approvati</td>
+            <td class="num principale"><%= euro(totali.incassoTotale) %></td>
+          </tr>
+          <tr>
+            <td>Quota del locale</td>
+            <td class="secondario"><%= percentuale(impostazioni.quotaLocale) %> dell'incasso</td>
+            <td class="num num--negativo">- <%= euro(totali.quotaLocale) %></td>
+          </tr>
+          <tr>
+            <td class="principale">Margine disponibile</td>
+            <td class="secondario"><%= percentuale(impostazioni.quotaAdmin) %> dell'incasso</td>
+            <td class="num principale"><%= euro(totali.margineLordo) %></td>
+          </tr>
+          <tr>
+            <td>Provvigioni ai collaboratori</td>
+            <td class="secondario">
+              Calcolate sui <%= numero(totali.numeroCapifila) %> collaboratori di primo livello,
+              che le ridistribuiscono lungo la struttura
+            </td>
+            <td class="num num--negativo">- <%= euro(totali.costoProvvigioni) %></td>
+          </tr>
+          <tr>
+            <td class="principale">Guadagno lordo</td>
+            <td></td>
+            <td class="num principale <%= segno(totali.guadagnoLordo) %>"><%= euro(totali.guadagnoLordo) %></td>
+          </tr>
+
+          <% totali.detrazioni.forEach(function (d) { %>
+            <tr>
+              <td><%= d.nome %></td>
+              <td class="secondario"><%= percentuale(d.percentuale) %> del guadagno lordo</td>
+              <td class="num num--negativo">- <%= euro(d.importo) %></td>
+            </tr>
+          <% }); %>
+
+          <tr>
+            <td class="principale">Guadagno netto</td>
+            <td class="secondario">Dopo tutte le detrazioni</td>
+            <td class="num principale <%= segno(totali.guadagnoNetto) %>"
+                style="font-size:1.05rem"><%= euro(totali.guadagnoNetto) %></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Contributo per collaboratore</h2>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!elenco.length) { %>
+      <div class="vuoto">Nessun dato nel periodo selezionato.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Collaboratore</th>
+              <th class="num">%</th>
+              <th class="num">Incasso proprio</th>
+              <th class="num">Tavoli</th>
+              <th class="num">Persone</th>
+              <th class="num">Costa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% elenco.forEach(function (p) { %>
+              <tr>
+                <td class="<%= rientro(p.livello) %>"><span class="principale"><%= p.nickname %></span></td>
+                <td class="num"><%= percentuale(p.percentuale) %></td>
+                <td class="num"><%= euro(p.fatturatoDiretto) %></td>
+                <td class="num"><%= numero(p.tavoliDiretti) %></td>
+                <td class="num"><%= numero(p.personeDirette) %></td>
+                <td class="num"><%= euro(p.guadagnoNetto) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
       </div>
-
-      <!-- Tabella dettagliata per singolo PR -->
-      <div class="content-section">
-        <div class="section-header">
-          <h2>
-            <i class="fas fa-table"></i>
-            Dettaglio per PR (<%= totali.numeroPR %> PR attivi)
-          </h2>
-        </div>
-        
-        <div class="card">
-          <div class="card-body">
-            <% if (prGuadagni.length > 0) { %>
-              <div class="table-responsive">
-                <table class="table guadagni-table">
-                  <thead>
-                    <tr>
-                      <th style="min-width: 140px;">PR</th>
-                      <th style="min-width: 100px;">Provvigione</th>
-                      <th style="min-width: 120px;">Fatturato</th>
-                      <th style="min-width: 80px;">Eventi</th>
-                      <th style="min-width: 120px;">Guadagno Lordo</th>
-                      <th style="min-width: 100px;">Passo (20%)</th>
-                      <th style="min-width: 100px;">Cassa (15%)</th>
-                      <th style="min-width: 100px;">Cuzzo (15%)</th>
-                      <th style="min-width: 120px;">Guadagno Netto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <% prGuadagni.forEach((pr, index) => { %>
-                      <tr class="pr-row">
-                        <td>
-                          <div class="pr-info">
-                            <strong><%= pr.nickname %></strong><br>
-                            <small class="text-muted"><%= pr.nome %> <%= pr.cognome %></small>
-                          </div>
-                        </td>
-                        <td>
-                          <div class="text-center">
-                            <span class="badge bg-primary mb-1"><%= pr.percentuale_provvigione %>%</span>
-                            <br><small class="text-muted">+85% = <strong><%= pr.percentualeTotaleAlPR %>%</strong></small>
-                          </div>
-                        </td>
-                        <td>
-                          <strong class="text-profit">€<%= pr.fatturatoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
-                        </td>
-                        <td>
-                          <span class="badge bg-secondary" style="font-size: 14px;"><%= pr.numero_eventi %></span>
-                        </td>
-                        <td>
-                          <strong class="text-primary" style="font-size: 15px;">€<%= pr.guadagnoLordoAdmin.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
-                        </td>
-                        <td class="text-loss">
-                          <i class="fas fa-minus-circle me-1"></i>€<%= pr.detrazioni.passo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-                        </td>
-                        <td class="text-loss">
-                          <i class="fas fa-minus-circle me-1"></i>€<%= pr.detrazioni.cassa.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-                        </td>
-                        <td class="text-loss">
-                          <i class="fas fa-minus-circle me-1"></i>€<%= pr.detrazioni.cuzzo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-                        </td>
-                        <td>
-                          <strong class="text-profit" style="font-size: 16px;">
-                            <i class="fas fa-coins me-1"></i>€<%= pr.guadagnoNettoAdmin.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-                          </strong>
-                        </td>
-                      </tr>
-                    <% }); %>
-                  </tbody>
-                  <tfoot>
-                    <tr>
-                      <th colspan="2" class="text-start">
-                        <i class="fas fa-calculator me-2"></i>TOTALI COMPLESSIVI
-                      </th>
-                      <th class="text-profit">€<%= totali.fatturatoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></th>
-                      <th><%= totali.numeroEventiTotali %></th>
-                      <th class="text-primary">€<%= totali.guadagnoLordoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></th>
-                      <th class="text-warning">-€<%= totali.detrazioniTotali.passo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></th>
-                      <th class="text-info">-€<%= totali.detrazioniTotali.cassa.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></th>
-                      <th class="text-success">-€<%= totali.detrazioniTotali.cuzzo.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></th>
-                      <th class="text-profit">
-                        <i class="fas fa-trophy me-1"></i>€<%= totali.guadagnoNettoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %>
-                      </th>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            <% } else { %>
-              <div class="empty-state">
-                <i class="fas fa-info-circle fa-4x"></i>
-                <h5>Nessun PR trovato</h5>
-                <p>Non ci sono PR associati a questo admin oppure non hanno ancora generato fatturato.</p>
-                <a href="/admin/nuovo-utente" class="btn btn-primary mt-3">
-                  <i class="fas fa-plus me-2"></i>Aggiungi Primo PR
-                </a>
-              </div>
-            <% } %>
-          </div>
-        </div>
+      <div class="pannello__corpo">
+        <p class="secondario" style="margin:0">
+          La colonna <em>costa</em> e' il guadagno netto del collaboratore, cioe' la parte
+          di provvigione che trattiene per se'. La somma della colonna coincide con le
+          provvigioni totali a carico dell'amministrazione.
+        </p>
       </div>
-
-      <!-- Riepilogo grafico -->
-      <div class="content-section">
-        <div class="section-header">
-          <h2>
-            <i class="fas fa-chart-donut"></i>
-            Ripartizione Guadagni
-          </h2>
-        </div>
-        
-        <div class="row">
-          <div class="col-md-6">
-            <div class="card">
-              <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">Composizione Ricavi</h5>
-              </div>
-              <div class="card-body">
-                <div class="progress-item">
-                  <div class="d-flex justify-content-between">
-                    <span>Guadagno Admin Netto</span>
-                    <strong>€<%= totali.guadagnoNettoTotale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
-                  </div>
-                  <div class="progress mb-3">
-                    <% 
-                      const percentualeNetto = totali.fatturatoTotale > 0 ? Math.round(totali.guadagnoNettoTotale / totali.fatturatoTotale * 100) : 0;
-                    %>
-                    <div class="progress-bar bg-success" style="width: <%= percentualeNetto %>%"></div>
-                  </div>
-                </div>
-                
-                <div class="progress-item">
-                  <div class="d-flex justify-content-between">
-                    <span>Detrazioni Totali</span>
-                    <strong>€<%= totali.detrazioniTotali.totale.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
-                  </div>
-                  <div class="progress mb-3">
-                    <% 
-                      const percentualeDetrazioni = totali.fatturatoTotale > 0 ? Math.round(totali.detrazioniTotali.totale / totali.fatturatoTotale * 100) : 0;
-                    %>
-                    <div class="progress-bar bg-danger" style="width: <%= percentualeDetrazioni %>%"></div>
-                  </div>
-                </div>
-                
-                <div class="progress-item">
-                  <div class="d-flex justify-content-between">
-                    <span>Provvigioni PR</span>
-                    <strong>€<%= (totali.fatturatoTotale - totali.guadagnoLordoTotale).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) %></strong>
-                  </div>
-                  <div class="progress mb-3">
-                    <% 
-                      const provvigioniPR = totali.fatturatoTotale - totali.guadagnoLordoTotale;
-                      const percentualeProvvigioni = totali.fatturatoTotale > 0 ? Math.round(provvigioniPR / totali.fatturatoTotale * 100) : 0;
-                    %>
-                    <div class="progress-bar bg-primary" style="width: <%= percentualeProvvigioni %>%"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="col-md-6">
-            <div class="card">
-              <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">Informazioni Admin</h5>
-              </div>
-              <div class="card-body">
-                <div class="admin-summary">
-                  <div class="info-row">
-                    <span class="label">Admin:</span>
-                    <span class="value"><%= adminInfo.nickname %></span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">Nome Completo:</span>
-                    <span class="value"><%= adminInfo.nome %> <%= adminInfo.cognome %></span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">PR Gestiti:</span>
-                    <span class="value"><%= totali.numeroPR %></span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">Eventi Totali:</span>
-                    <span class="value"><%= totali.numeroEventiTotali %></span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">Media per PR:</span>
-                    <span class="value">€<%= totali.numeroPR > 0 ? (totali.guadagnoNettoTotale / totali.numeroPR).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00' %></span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <style>
-        /* Layout e base */
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-          gap: 25px;
-          margin-bottom: 35px;
-        }
-        
-        .stat-card {
-          background: linear-gradient(145deg, #ffffff, #f8f9fa);
-          border-radius: 15px;
-          padding: 25px;
-          display: flex;
-          align-items: center;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.08);
-          border: 1px solid rgba(0,0,0,0.03);
-          transition: all 0.3s ease;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .stat-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 4px;
-          background: linear-gradient(90deg, #667eea, #764ba2);
-        }
-        
-        .stat-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 15px 35px rgba(0,0,0,0.12);
-        }
-        
-        .stat-icon {
-          width: 70px;
-          height: 70px;
-          border-radius: 15px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-right: 20px;
-          color: white;
-          font-size: 28px;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
-        
-        .stat-content {
-          flex: 1;
-        }
-        
-        .stat-number {
-          font-size: 28px;
-          font-weight: 700;
-          color: #2c3e50;
-          margin-bottom: 8px;
-          font-family: 'Segoe UI', sans-serif;
-        }
-        
-        .stat-label {
-          color: #7f8c8d;
-          font-size: 14px;
-          font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-        
-        /* Sezioni contenuto */
-        .content-section {
-          margin-bottom: 40px;
-        }
-        
-        .section-header {
-          margin-bottom: 25px;
-          padding-bottom: 15px;
-          border-bottom: 3px solid #e9ecef;
-          position: relative;
-        }
-        
-        .section-header::after {
-          content: '';
-          position: absolute;
-          bottom: -3px;
-          left: 0;
-          width: 60px;
-          height: 3px;
-          background: linear-gradient(90deg, #667eea, #764ba2);
-        }
-        
-        .section-header h2 {
-          color: #2c3e50;
-          font-size: 24px;
-          font-weight: 700;
-          margin: 0;
-          display: flex;
-          align-items: center;
-        }
-        
-        .section-header h2 i {
-          margin-right: 12px;
-          color: #667eea;
-          font-size: 26px;
-        }
-        
-        /* Header pagina */
-        .page-header {
-          margin-bottom: 40px;
-          text-align: center;
-          padding: 40px 20px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          border-radius: 20px;
-          color: white;
-          margin-top: -20px;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .page-header::before {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-          animation: grain 20s linear infinite;
-        }
-        
-        @keyframes grain {
-          0%, 100% { transform: translate(0, 0); }
-          10% { transform: translate(-5%, -5%); }
-          20% { transform: translate(-10%, 5%); }
-          30% { transform: translate(5%, -10%); }
-          40% { transform: translate(-5%, 15%); }
-          50% { transform: translate(-10%, 5%); }
-          60% { transform: translate(15%, 0%); }
-          70% { transform: translate(0%, 10%); }
-          80% { transform: translate(-15%, 0%); }
-          90% { transform: translate(10%, 5%); }
-        }
-        
-        .page-header h1 {
-          font-size: 32px;
-          font-weight: 700;
-          margin-bottom: 15px;
-          position: relative;
-          z-index: 1;
-        }
-        
-        .page-header p {
-          margin: 0;
-          opacity: 0.95;
-          font-size: 16px;
-          position: relative;
-          z-index: 1;
-        }
-        
-        /* Cards */
-        .card {
-          border: none;
-          box-shadow: 0 6px 20px rgba(0,0,0,0.08);
-          border-radius: 15px;
-          overflow: hidden;
-          background: linear-gradient(145deg, #ffffff, #f8f9fa);
-        }
-        
-        .card-header {
-          background: linear-gradient(135deg, #2c3e50, #34495e) !important;
-          border: none;
-          padding: 20px;
-          color: white;
-        }
-        
-        .card-header h5 {
-          margin: 0;
-          font-weight: 600;
-          font-size: 18px;
-        }
-        
-        .card-body {
-          padding: 25px;
-        }
-        
-        /* Detrazioni cards */
-        .detrazione-card {
-          transition: all 0.3s ease;
-          margin-bottom: 25px;
-          border-radius: 15px;
-          overflow: hidden;
-          background: linear-gradient(145deg, #ffffff, #f8f9fa);
-          border: 1px solid rgba(0,0,0,0.05);
-        }
-        
-        .detrazione-card:hover {
-          transform: translateY(-8px);
-          box-shadow: 0 20px 40px rgba(0,0,0,0.15);
-        }
-        
-        .detrazione-icon {
-          width: 90px;
-          height: 90px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin: 0 auto 20px;
-          font-size: 35px;
-          color: white;
-          box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-        
-        .detrazione-icon.passo {
-          background: linear-gradient(135deg, #f39c12, #e67e22);
-        }
-        
-        .detrazione-icon.cassa {
-          background: linear-gradient(135deg, #3498db, #2980b9);
-        }
-        
-        .detrazione-icon.cuzzo {
-          background: linear-gradient(135deg, #27ae60, #2ecc71);
-        }
-        
-        .detrazione-card h5 {
-          color: #2c3e50;
-          font-weight: 600;
-          margin-bottom: 15px;
-          font-size: 18px;
-        }
-        
-        .detrazione-card h3 {
-          font-weight: 700;
-          font-size: 24px;
-          margin: 0;
-        }
-        
-        /* Tabella guadagni */
-        .guadagni-table {
-          font-size: 14px;
-          border-collapse: separate;
-          border-spacing: 0;
-          background: white;
-          border-radius: 10px;
-          overflow: hidden;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        
-        .guadagni-table thead {
-          background: linear-gradient(135deg, #2c3e50, #34495e);
-        }
-        
-        .guadagni-table th {
-          background: none;
-          border: none;
-          color: white;
-          font-weight: 600;
-          text-align: center;
-          vertical-align: middle;
-          padding: 18px 12px;
-          font-size: 13px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          position: relative;
-        }
-        
-        .guadagni-table th:not(:last-child)::after {
-          content: '';
-          position: absolute;
-          right: 0;
-          top: 20%;
-          height: 60%;
-          width: 1px;
-          background: rgba(255,255,255,0.2);
-        }
-        
-        .guadagni-table td {
-          text-align: center;
-          vertical-align: middle;
-          padding: 16px 12px;
-          border-bottom: 1px solid #f8f9fa;
-          font-weight: 500;
-        }
-        
-        .guadagni-table tbody tr {
-          transition: all 0.2s ease;
-        }
-        
-        .guadagni-table tbody tr:hover {
-          background: linear-gradient(90deg, #f8f9fa, #ffffff);
-          transform: scale(1.01);
-          box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        }
-        
-        .pr-info {
-          text-align: left;
-          padding-left: 5px;
-        }
-        
-        .pr-info strong {
-          font-size: 15px;
-          color: #2c3e50;
-          font-weight: 600;
-        }
-        
-        .pr-info small {
-          color: #7f8c8d;
-          font-size: 12px;
-        }
-        
-        /* Footer tabella */
-        .guadagni-table tfoot {
-          background: linear-gradient(135deg, #34495e, #2c3e50);
-        }
-        
-        .guadagni-table tfoot th {
-          color: white;
-          font-weight: 700;
-          font-size: 14px;
-          padding: 20px 12px;
-          border: none;
-        }
-        
-        /* Badge e elementi UI */
-        .badge {
-          font-size: 12px;
-          padding: 6px 12px;
-          border-radius: 20px;
-          font-weight: 500;
-        }
-        
-        .progress {
-          height: 12px;
-          border-radius: 10px;
-          background: #f8f9fa;
-          box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .progress-bar {
-          border-radius: 10px;
-          transition: width 0.6s ease;
-        }
-        
-        .progress-item {
-          margin-bottom: 20px;
-          padding: 15px;
-          background: #f8f9fa;
-          border-radius: 10px;
-          border-left: 4px solid #667eea;
-        }
-        
-        .progress-item .d-flex {
-          margin-bottom: 10px;
-        }
-        
-        .progress-item span {
-          font-weight: 500;
-        }
-        
-        .progress-item strong {
-          font-weight: 700;
-          color: #2c3e50;
-        }
-        
-        /* Informazioni admin */
-        .admin-summary {
-          font-size: 16px;
-          background: #f8f9fa;
-          border-radius: 10px;
-          padding: 20px;
-        }
-        
-        .info-row {
-          display: flex;
-          justify-content: space-between;
-          padding: 12px 0;
-          border-bottom: 1px solid rgba(0,0,0,0.1);
-        }
-        
-        .info-row:last-child {
-          border-bottom: none;
-        }
-        
-        .info-row .label {
-          font-weight: 600;
-          color: #555;
-        }
-        
-        .info-row .value {
-          color: #2c3e50;
-          font-weight: 600;
-        }
-        
-        /* Stato vuoto */
-        .empty-state {
-          text-align: center;
-          padding: 60px 20px;
-          background: linear-gradient(145deg, #f8f9fa, #e9ecef);
-          border-radius: 15px;
-        }
-        
-        .empty-state i {
-          color: #bdc3c7;
-          margin-bottom: 20px;
-        }
-        
-        .empty-state h5 {
-          color: #7f8c8d;
-          margin-bottom: 10px;
-        }
-        
-        .empty-state p {
-          color: #95a5a6;
-        }
-        
-        /* Responsive */
-        @media (max-width: 1200px) {
-          .stats-grid {
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-          }
-        }
-        
-        @media (max-width: 768px) {
-          .guadagni-table {
-            font-size: 12px;
-          }
-          
-          .guadagni-table th, .guadagni-table td {
-            padding: 10px 6px;
-          }
-          
-          .stat-number {
-            font-size: 22px;
-          }
-          
-          .page-header h1 {
-            font-size: 26px;
-          }
-          
-          .section-header h2 {
-            font-size: 20px;
-          }
-          
-          .detrazione-icon {
-            width: 70px;
-            height: 70px;
-            font-size: 25px;
-          }
-          
-          .stat-card {
-            padding: 20px;
-          }
-          
-          .card-body {
-            padding: 20px;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .stats-grid {
-            grid-template-columns: 1fr;
-          }
-          
-          .guadagni-table {
-            font-size: 10px;
-          }
-          
-          .pr-info strong {
-            font-size: 13px;
-          }
-          
-          .pr-info small {
-            font-size: 10px;
-          }
-          
-          .page-header {
-            padding: 30px 15px;
-          }
-          
-          .section-header h2 {
-            font-size: 18px;
-          }
-        }
-        
-        /* Animazioni */
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .content-section {
-          animation: slideIn 0.6s ease-out;
-        }
-        
-        .content-section:nth-child(even) {
-          animation-delay: 0.1s;
-        }
-        
-        .content-section:nth-child(odd) {
-          animation-delay: 0.2s;
-        }
-        
-        /* Colori specifici per valori */
-        .text-profit {
-          color: #27ae60 !important;
-          font-weight: 700;
-        }
-        
-        .text-loss {
-          color: #e74c3c !important;
-          font-weight: 600;
-        }
-        
-        .text-neutral {
-          color: #34495e !important;
-          font-weight: 600;
-        }
-        
-        /* Effetti hover per tabella */
-        .guadagni-table tbody tr:hover .text-profit {
-          color: #2ecc71 !important;
-        }
-        
-        .guadagni-table tbody tr:hover .text-loss {
-          color: #ff6b6b !important;
-        }
-      </style>
-
-      <script>
-        // Animazioni al caricamento
-        document.addEventListener('DOMContentLoaded', function() {
-          console.log('Pagina Guadagni con dati reali caricata');
-          console.log('Totali:', {
-            fatturato: '<%= totali.fatturatoTotale %>',
-            guadagnoNetto: '<%= totali.guadagnoNettoTotale %>',
-            numeroPR: '<%= totali.numeroPR %>'
-          });
-          
-          // Anima le cards statistiche
-          const statCards = document.querySelectorAll('.stat-card');
-          statCards.forEach((card, index) => {
-            setTimeout(() => {
-              card.style.opacity = '0';
-              card.style.transform = 'translateY(20px)';
-              card.style.transition = 'all 0.6s ease';
-              setTimeout(() => {
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-              }, 100);
-            }, index * 100);
-          });
-          
-          // Anima le righe della tabella
-          const tableRows = document.querySelectorAll('.pr-row');
-          tableRows.forEach((row, index) => {
-            setTimeout(() => {
-              row.style.opacity = '0';
-              row.style.transform = 'translateX(-20px)';
-              row.style.transition = 'all 0.5s ease';
-              setTimeout(() => {
-                row.style.opacity = '1';
-                row.style.transform = 'translateX(0)';
-              }, 100);
-            }, (index + 1) * 150);
-          });
-          
-          // Tooltip per le colonne
-          const tooltips = {
-            'Fatturato': 'Totale incassi generati dal PR',
-            'Guadagno Lordo': 'Ricavo admin prima delle detrazioni',
-            'Passo': 'Quota destinata a Passo (20%)',
-            'Cassa': 'Quota destinata a Cassa (15%)', 
-            'Cuzzo': 'Quota destinata a Cuzzo (15%)',
-            'Guadagno Netto': 'Ricavo effettivo admin'
-          };
-          
-          // Evidenzia totali in footer
-          const footerCells = document.querySelectorAll('tfoot th');
-          footerCells.forEach(cell => {
-            cell.addEventListener('mouseenter', function() {
-              this.style.transform = 'scale(1.05)';
-              this.style.transition = 'transform 0.2s ease';
-            });
-            
-            cell.addEventListener('mouseleave', function() {
-              this.style.transform = 'scale(1)';
-            });
-          });
-          
-          // Effetto hover migliorato per le righe
-          tableRows.forEach(row => {
-            row.addEventListener('mouseenter', function() {
-              this.style.backgroundColor = '#f8f9fa';
-              this.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
-              this.style.transform = 'scale(1.02)';
-              this.style.transition = 'all 0.3s ease';
-            });
-            
-            row.addEventListener('mouseleave', function() {
-              this.style.backgroundColor = '';
-              this.style.boxShadow = '';
-              this.style.transform = 'scale(1)';
-            });
-          });
-          
-          // Formattazione numeri con separatori migliaia
-          const formatNumber = (num) => {
-            return new Intl.NumberFormat('it-IT', {
-              style: 'currency',
-              currency: 'EUR',
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2
-            }).format(num);
-          };
-          
-          // Anima le progress bar
-          const progressBars = document.querySelectorAll('.progress-bar');
-          setTimeout(() => {
-            progressBars.forEach(bar => {
-              const width = bar.style.width;
-              bar.style.width = '0%';
-              bar.style.transition = 'width 1.5s ease-in-out';
-              setTimeout(() => {
-                bar.style.width = width;
-              }, 200);
-            });
-          }, 1000);
-          
-          // Aggiungi icone dinamiche ai valori negativi
-          const negativeCells = document.querySelectorAll('.text-loss');
-          negativeCells.forEach(cell => {
-            if (!cell.querySelector('i')) {
-              const icon = document.createElement('i');
-              icon.className = 'fas fa-arrow-down me-1';
-              icon.style.color = '#e74c3c';
-              cell.prepend(icon);
-            }
-          });
-          
-          // Aggiungi icone dinamiche ai valori positivi
-          const positiveCells = document.querySelectorAll('.text-profit');
-          positiveCells.forEach(cell => {
-            if (!cell.querySelector('i')) {
-              const icon = document.createElement('i');
-              icon.className = 'fas fa-arrow-up me-1';
-              icon.style.color = '#27ae60';
-              cell.prepend(icon);
-            }
-          });
-        });
-        
-        // Funzione per aggiornare i dati
-        function aggiornaDati() {
-          const btn = event.target;
-          const icon = btn.querySelector('i');
-          
-          // Mostra loading
-          btn.disabled = true;
-          icon.className = 'fas fa-spinner fa-spin';
-          btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Aggiornando...';
-          
-          // Simula aggiornamento e ricarica la pagina
-          setTimeout(() => {
-            location.reload();
-          }, 1000);
-        }
-        
-        // Funzione per esportare i dati in formato CSV
-        function esportaDati() {
-          const btn = event.target;
-          const icon = btn.querySelector('i');
-          
-          try {
-            // Mostra loading
-            btn.disabled = true;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Esportando...';
-            
-            // Raccogli i dati dalla tabella
-            const dataEsportazione = [
-              ['PR', 'Percentuale Provvigione', 'Fatturato', 'Eventi', 'Guadagno Lordo', 'Passo (20%)', 'Cassa (15%)', 'Cuzzo (15%)', 'Guadagno Netto']
-            ];
-            
-            // Estrai dati dalla tabella PR se presente
-            const tabellaCorpo = document.querySelector('.table-responsive tbody');
-            if (tabellaCorpo) {
-              const righe = tabellaCorpo.querySelectorAll('tr');
-              righe.forEach((riga, index) => {
-                const celle = riga.querySelectorAll('td');
-                if (celle.length >= 8) {
-                  // Estrai il testo dalle celle rimuovendo elementi HTML
-                  const riga_dati = [];
-                  celle.forEach((cella, cellIndex) => {
-                    if (cellIndex === 0) {
-                      // Prima cella contiene nome + dati personali
-                      const nickname = cella.querySelector('.fw-bold')?.textContent?.trim() || '';
-                      const nome = cella.querySelector('.text-muted')?.textContent?.trim() || '';
-                      riga_dati.push(nickname + (nome ? ' (' + nome + ')' : ''));
-                    } else {
-                      riga_dati.push(cella.textContent.trim());
-                    }
-                  });
-                  dataEsportazione.push(riga_dati);
-                }
-              });
-            }
-            
-            // Aggiungi dati riassuntivi dalle statistiche
-            const statCards = document.querySelectorAll('.stat-card .stat-value');
-            if (statCards.length >= 4) {
-              dataEsportazione.push(['']); // Riga vuota
-              dataEsportazione.push(['STATISTICHE GENERALI']);
-              dataEsportazione.push(['Fatturato Totale', statCards[0].textContent.trim()]);
-              dataEsportazione.push(['Eventi Totali', statCards[1].textContent.trim()]);
-              dataEsportazione.push(['Guadagno Lordo', statCards[2].textContent.trim()]);
-              dataEsportazione.push(['Guadagno Netto', statCards[3].textContent.trim()]);
-            }
-            
-            // Converti in CSV
-            const csvContent = dataEsportazione.map(row => 
-              row.map(cell => `"${cell}"`).join(',')
-            ).join('\n');
-            
-            // Crea e scarica il file
-            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            
-            if (link.download !== undefined) {
-              const url = URL.createObjectURL(blob);
-              link.setAttribute('href', url);
-              
-              // Nome file con data
-              const oggi = new Date();
-              const dataFormattata = oggi.toISOString().split('T')[0];
-              link.setAttribute('download', `guadagni_admin_${dataFormattata}.csv`);
-              
-              link.style.visibility = 'hidden';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              
-              // Mostra notifica di successo
-              setTimeout(() => {
-                alert('✅ Report esportato con successo!');
-              }, 500);
-            } else {
-              throw new Error('Download non supportato dal browser');
-            }
-            
-          } catch (error) {
-            console.error('Errore esportazione:', error);
-            alert('❌ Errore durante l\'esportazione del report');
-          } finally {
-            // Ripristina pulsante
-            setTimeout(() => {
-              btn.disabled = false;
-              btn.innerHTML = '<i class="fas fa-download"></i> Esporta';
-            }, 1500);
-          }
-        }
-        
-        // Funzione per gestire staff (reindirizza alla pagina staff)
-        function gestisciStaff() {
-          window.location.href = '/admin/staff';
-        }
-        
-        // Funzione per aggiornare dati (alias per compatibilità)
-        function refreshData() {
-          aggiornaDati();
-        }
-        
-        // Funzione per esportare dati (alias per compatibilità)
-        function exportData() {
-          esportaDati();
-        }
-      </script>
+    <% } %>
+  </div>
+</div>

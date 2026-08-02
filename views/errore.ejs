@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title><%= titolo %> - Aura</title>
+  <link rel="stylesheet" href="/css/aura.css">
+</head>
+<body>
+  <main class="accesso">
+    <div class="accesso__riquadro">
+      <div class="accesso__marchio">
+        <div class="accesso__nome">AUR<span>A</span></div>
+        <% if (typeof codice !== 'undefined' && codice) { %>
+          <div class="accesso__sotto">Errore <%= codice %></div>
+        <% } %>
+      </div>
+
+      <h2 style="margin-bottom:.5rem"><%= titolo %></h2>
+      <p class="secondario" style="margin-top:0"><%= messaggio %></p>
+
+      <a href="/" class="pulsante pulsante--primario pulsante--largo" style="margin-top:1rem">
+        Torna all'inizio
+      </a>
+    </div>
+  </main>
+</body>
+</html>

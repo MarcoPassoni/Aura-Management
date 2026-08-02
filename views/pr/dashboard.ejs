@@ -1,445 +1,163 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard PR - Aura</title>
-    <link rel="stylesheet" href="/css/style.css">
-    <link rel="icon" type="image/x-icon" sizes="32x32" href="/img/favicon.ico">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        .dashboard-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .stats-section {
-            margin-bottom: 30px;
-        }
-        
-        .section-title {
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            color: #333;
-            border-bottom: 2px solid #4CAF50;
-            padding-bottom: 5px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            border: 1px solid #e0e0e0;
-        }
-        
-        .stat-card.personal {
-            border-left: 4px solid #2196F3;
-        }
-        
-        .stat-card.team {
-            border-left: 4px solid #4CAF50;
-        }
-        
-        .stat-card.comparison {
-            border-left: 4px solid #FF9800;
-        }
-        
-        .stat-value {
-            font-size: 2em;
-            font-weight: bold;
-            margin: 10px 0;
-            color: #333;
-        }
-        
-        .stat-label {
-            color: #666;
-            font-size: 0.9em;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .stat-sublabel {
-            color: #999;
-            font-size: 0.8em;
-            margin-top: 5px;
-        }
-        
-        .chart-container {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-        
-        .team-section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        
-        .team-member {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            background: #f9f9f9;
-        }
-        
-        .team-member:last-child {
-            border-bottom: none;
-            margin-bottom: 0;
-        }
-        
-        .member-info {
-            flex: 1;
-        }
-        
-        .member-name {
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .member-role {
-            color: #666;
-            font-size: 0.9em;
-        }
-        
-        .member-stats {
-            display: flex;
-            gap: 20px;
-            font-size: 0.9em;
-        }
-        
-        .member-stat {
-            text-align: center;
-        }
-        
-        .member-stat-value {
-            font-weight: bold;
-            color: #4CAF50;
-        }
-        
-        .member-stat-label {
-            color: #666;
-            font-size: 0.8em;
-        }
-        
-        .no-team {
-            text-align: center;
-            color: #666;
-            font-style: italic;
-            padding: 20px;
-        }
-        
-        .welcome-header {
-            text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            border-radius: 10px;
-        }
-        
-        .welcome-header h1 {
-            margin: 0;
-            font-size: 2em;
-        }
-        
-        .welcome-header p {
-            margin: 10px 0 0;
-            opacity: 0.9;
-        }
-        
-        @media (max-width: 768px) {
-            .dashboard-container {
-                padding: 10px 10px 3rem 10px; /* Aggiungi padding-bottom */
-                margin-bottom: 2rem; /* Spazio extra in fondo */
-            }
-            
-            .stats-grid {
-                grid-template-columns: 1fr;
-                gap: 15px;
-            }
-            
-            .stat-card {
-                padding: 15px;
-            }
-            
-            .stat-value {
-                font-size: 1.8em;
-            }
-            
-            .member-stats {
-                flex-direction: column;
-                gap: 10px;
-            }
-            
-            .team-member {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-                padding: 15px;
-            }
-            
-            .section-title {
-                font-size: 1.3em;
-            }
-            
-            .welcome-header h1 {
-                font-size: 1.8em;
-            }
-            
-            /* Assicura spazio per il contenuto */
-            body {
-                padding-bottom: 3rem !important;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .dashboard-container {
-                padding: 5px 5px 4rem 5px; /* Ancora più padding-bottom */
-                margin-bottom: 3rem;
-            }
-            
-            .stat-card {
-                padding: 12px;
-            }
-            
-            .stat-value {
-                font-size: 1.5em;
-            }
-            
-            .stat-label {
-                font-size: 0.9em;
-            }
-            
-            .section-title {
-                font-size: 1.2em;
-            }
-            
-            .welcome-header h1 {
-                font-size: 1.5em;
-            }
-            
-            .welcome-header p {
-                font-size: 0.9em;
-            }
-            
-            /* Ancora più spazio per mobile piccoli */
-            body {
-                padding-bottom: 4rem !important;
-            }
-        }
-    </style>
-</head>
-<body>
-    <%- include('sidebar') %>
-    
-    <div class="main-content">
-        <div class="dashboard-container">
-            <!-- Header di benvenuto -->
-            <div class="welcome-header">
-                <h1>Dashboard di <%= user.nickname %></h1>
-                <p>Panoramica completa delle tue performance e del tuo team</p>
-            </div>
+<div class="griglia">
+  <div class="scheda">
+    <div class="scheda__etichetta">Da ricevere</div>
+    <div class="scheda__valore <%= segno(mia.saldoDaRicevere) %>"><%= euro(mia.saldoDaRicevere) %></div>
+    <div class="scheda__nota">Da <%= mia.pagante.nome %></div>
+  </div>
 
-            <!-- Statistiche Personali -->
-            <div class="stats-section">
-                <h2 class="section-title">📊 Le Tue Statistiche Personali</h2>
-                <div class="stats-grid">
-                    <div class="stat-card personal">
-                        <div class="stat-label">Prenotazioni Personali</div>
-                        <div class="stat-value"><%= stats.prenotazioni_personali %></div>
-                        <div class="stat-sublabel">Tavoli che hai portato</div>
-                    </div>
-                    <div class="stat-card personal">
-                        <div class="stat-label">Fatturato Personale</div>
-                        <div class="stat-value">€<%= (stats.fatturato_personale || 0).toLocaleString() %></div>
-                        <div class="stat-sublabel">Ricavi dai tuoi tavoli</div>
-                    </div>
-                    <div class="stat-card personal">
-                        <div class="stat-label">Provvigioni Personali</div>
-                        <div class="stat-value">€<%= (stats.provvigioni_personali || 0).toLocaleString() %></div>
-                        <div class="stat-sublabel">Da ricevere</div>
-                    </div>
-                </div>
-            </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Maturato totale</div>
+    <div class="scheda__valore"><%= euro(mia.maturatoLordo) %></div>
+    <div class="scheda__nota"><%= percentuale(mia.percentuale) %> su <%= euro(mia.fatturatoSottoalbero) %></div>
+  </div>
 
-            <% if (stats.has_team) { %>
-            <!-- Statistiche Totali (Tu + Team) -->
-            <div class="stats-section">
-                <h2 class="section-title">🏆 Statistiche Totali (Tu + Team)</h2>
-                <div class="stats-grid">
-                    <div class="stat-card team">
-                        <div class="stat-label">Prenotazioni Totali</div>
-                        <div class="stat-value"><%= stats.prenotazioni_totali %></div>
-                        <div class="stat-sublabel">Tu + <%= stats.numero_figli %> membri del team</div>
-                    </div>
-                    <div class="stat-card team">
-                        <div class="stat-label">Fatturato Totale</div>
-                        <div class="stat-value">€<%= (stats.fatturato_totale || 0).toLocaleString() %></div>
-                        <div class="stat-sublabel">Ricavi complessivi del team</div>
-                    </div>
-                    <div class="stat-card team">
-                        <div class="stat-label">Provvigioni Totali</div>
-                        <div class="stat-value">€<%= (stats.provvigioni_totali || 0).toLocaleString() %></div>
-                        <div class="stat-sublabel">Team completo</div>
-                    </div>
-                </div>
-            </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Gia' incassato</div>
+    <div class="scheda__valore"><%= euro(mia.ricevuto) %></div>
+  </div>
 
-            <!-- Confronto Performance -->
-            <div class="stats-section">
-                <h2 class="section-title">⚡ Performance Comparison</h2>
-                <div class="stats-grid">
-                    <div class="stat-card comparison">
-                        <div class="stat-label">Il Tuo Contributo</div>
-                        <div class="stat-value"><%= stats.prenotazioni_totali > 0 ? Math.round((stats.prenotazioni_personali / stats.prenotazioni_totali) * 100) : 0 %>%</div>
-                        <div class="stat-sublabel">Delle prenotazioni totali</div>
-                    </div>
-                    <div class="stat-card comparison">
-                        <div class="stat-label">Team Performance</div>
-                        <div class="stat-value"><%= stats.prenotazioni_totali - stats.prenotazioni_personali %></div>
-                        <div class="stat-sublabel">Prenotazioni del team</div>
-                    </div>
-                    <div class="stat-card comparison">
-                        <div class="stat-label">Moltiplicatore Team</div>
-                        <div class="stat-value">x<%= stats.prenotazioni_personali > 0 ? (stats.prenotazioni_totali / stats.prenotazioni_personali).toFixed(1) : '1.0' %></div>
-                        <div class="stat-sublabel">Effetto leva del team</div>
-                    </div>
-                </div>
-            </div>
-            <% } %>
-
-            <!-- Grafico Andamento -->
-            <div class="chart-container">
-                <h2 class="section-title">📈 Andamento Fatturato (Ultimi 6 Mesi)</h2>
-                <canvas id="revenueChart" width="400" height="200"></canvas>
-            </div>
-
-            <!-- Team Members -->
-            <% if (stats.has_team) { %>
-            <div class="team-section">
-                <h2 class="section-title">👥 Il Tuo Team (<%= stats.numero_figli %> membri)</h2>
-                <% if (sottoStaff && sottoStaff.length > 0) { %>
-                    <% sottoStaff.forEach(member => { %>
-                    <div class="team-member">
-                        <div class="member-info">
-                            <div class="member-name"><%= member.nickname %></div>
-                            <div class="member-role"><%= member.ruolo.toUpperCase() %></div>
-                        </div>
-                        <div class="member-stats">
-                            <div class="member-stat">
-                                <div class="member-stat-value"><%= member.prenotazioni %></div>
-                                <div class="member-stat-label">Prenotazioni</div>
-                            </div>
-                            <div class="member-stat">
-                                <div class="member-stat-value">€<%= (member.fatturato || 0).toLocaleString() %></div>
-                                <div class="member-stat-label">Fatturato</div>
-                            </div>
-                            <div class="member-stat">
-                                <div class="member-stat-value">€<%= (member.provvigioni || 0).toLocaleString() %></div>
-                                <div class="member-stat-label">Provvigioni</div>
-                            </div>
-                            <div class="member-stat">
-                                <div class="member-stat-value"><%= member.persone_portate || 0 %></div>
-                                <div class="member-stat-label">Persone</div>
-                            </div>
-                        </div>
-                    </div>
-                    <% }); %>
-                <% } else { %>
-                    <div class="no-team">
-                        <p>Non hai ancora membri nel tuo team.</p>
-                    </div>
-                <% } %>
-            </div>
-            <% } else { %>
-            <div class="team-section">
-                <h2 class="section-title">👤 Modalità Individuale</h2>
-                <div class="no-team">
-                    <p>Stai operando in modalità individuale. Le statistiche mostrate rappresentano esclusivamente le tue performance personali.</p>
-                </div>
-            </div>
-            <% } %>
-        </div>
+  <% if (figli.length) { %>
+    <div class="scheda">
+      <div class="scheda__etichetta">Devo ai collaboratori</div>
+      <div class="scheda__valore"><%= euro(dovutoAiFigli) %></div>
+      <div class="scheda__nota"><%= numero(figli.length) %> collaboratori</div>
     </div>
+  <% } else { %>
+    <div class="scheda">
+      <div class="scheda__etichetta">Tavoli portati</div>
+      <div class="scheda__valore"><%= numero(mia.tavoliDiretti) %></div>
+      <div class="scheda__nota"><%= numero(mia.personeDirette) %> persone</div>
+    </div>
+  <% } %>
+</div>
 
-    <script>
-        // Configurazione Chart.js per il grafico del fatturato
-        const ctx = document.getElementById('revenueChart').getContext('2d');
-        const revenueChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: <%- JSON.stringify(stats.mesi) %>,
-                datasets: [{
-                    label: '<% if (stats.has_team) { %>Fatturato Team<% } else { %>Fatturato Personale<% } %>',
-                    data: <%- JSON.stringify(stats.fatturatoMensile) %>,
-                    borderColor: '<% if (stats.has_team) { %>#4CAF50<% } else { %>#2196F3<% } %>',
-                    backgroundColor: '<% if (stats.has_team) { %>rgba(76, 175, 80, 0.1)<% } else { %>rgba(33, 150, 243, 0.1)<% } %>',
-                    fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: '<% if (stats.has_team) { %>#4CAF50<% } else { %>#2196F3<% } %>',
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2,
-                    pointRadius: 5
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': €' + context.parsed.y.toLocaleString();
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            callback: function(value) {
-                                return '€' + value.toLocaleString();
-                            }
-                        }
-                    }
-                },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
-                }
-            }
-        });
+<% if (inAttesa > 0) { %>
+  <div class="avviso avviso--attenzione">
+    Hai <%= numero(inAttesa) %> prenotazioni in attesa di approvazione.
+    Non generano provvigioni finche' non vengono approvate.
+  </div>
+<% } %>
 
-        // Aggiorna il grafico ogni 30 secondi per riflettere eventuali nuovi dati
-        setInterval(() => {
-            // Qui si potrebbe implementare un aggiornamento in tempo reale
-            // via AJAX se necessario
-        }, 30000);
-    </script>
-</body>
-</html>
+<% if (figli.length) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>La mia struttura</h2>
+      <a href="/pr/provvigioni" class="secondario">Gestisci i pagamenti</a>
+    </div>
+    <div class="pannello__corpo pannello__corpo--stretto">
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Collaboratore</th>
+              <th class="num">%</th>
+              <th class="num">Incasso</th>
+              <th class="num">Gli devo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% figli.forEach(function (f) { %>
+              <tr>
+                <td class="principale"><%= f.nickname %></td>
+                <td class="num"><%= percentuale(f.percentuale) %></td>
+                <td class="num"><%= euro(f.fatturatoSottoalbero) %></td>
+                <td class="num <%= segno(f.saldoDaRicevere) %>"><%= euro(f.saldoDaRicevere) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Andamento degli ultimi mesi</h2>
+  </div>
+  <div class="pannello__corpo">
+    <% if (!andamento.length) { %>
+      <div class="vuoto">Nessun tavolo approvato negli ultimi mesi.</div>
+    <% } else {
+         const massimo = Math.max.apply(null, andamento.map(function (m) { return m.fatturato; })) || 1; %>
+      <div class="grafico">
+        <% andamento.forEach(function (m) { %>
+          <div class="grafico__colonna">
+            <div class="grafico__valore"><%= numero(Math.round(m.fatturato)) %></div>
+            <div class="grafico__barra"
+                 style="height: <%= Math.max(2, Math.round((m.fatturato / massimo) * 90)) %>px"
+                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.fatturato) %>"></div>
+            <div class="grafico__etichetta"><%= meseIt(m.mese) %></div>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>Ultimi tavoli</h2>
+    <a href="/pr/tavoli" class="secondario">Vedi tutti</a>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!ultimiTavoli.length) { %>
+      <div class="vuoto">
+        Non hai ancora prenotato tavoli.
+        <a href="/pr/prenotazioni">Inserisci il primo</a>.
+      </div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tavolo</th>
+              <th class="num">Persone</th>
+              <th class="num">Importo</th>
+              <th>Stato</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% ultimiTavoli.forEach(function (t) { %>
+              <tr>
+                <td><%= dataIt(t.data) %></td>
+                <td class="principale"><%= t.nome_tavolo %></td>
+                <td class="num"><%= numero(t.numero_persone) %></td>
+                <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (pagamentiRicevuti.length) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Ultimi pagamenti ricevuti</h2>
+    </div>
+    <div class="pannello__corpo pannello__corpo--stretto">
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr><th>Data</th><th>Da</th><th class="num">Importo</th><th>Note</th></tr>
+          </thead>
+          <tbody>
+            <% pagamentiRicevuti.forEach(function (p) { %>
+              <tr>
+                <td><%= dataOraIt(p.data_pagamento) %></td>
+                <td><%= p.pagante_nickname || 'Amministrazione' %></td>
+                <td class="num"><%= euro(p.importo) %></td>
+                <td class="secondario"><%= p.note || '-' %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% } %>
