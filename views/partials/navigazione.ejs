@@ -1,11 +1,17 @@
 <%
   // Le voci del menu dipendono dal ruolo. `paginaCorrente` viene passato da
   // ogni route e determina quale voce risulta selezionata.
+  //
+  // I contatori arrivano da `badge`, popolato dal middleware datiNavigazione
+  // prima di ogni pagina: sono quindi identici ovunque. Prima venivano dalle
+  // variabili della singola route e comparivano solo sul riepilogo.
+  const contatori = typeof badge !== 'undefined' && badge ? badge : {};
+
   const voci = utente.ruolo === 'admin'
     ? [
         { gruppo: 'Attivita' },
         { id: 'riepilogo',    testo: 'Riepilogo',     url: '/admin/riepilogo' },
-        { id: 'approvazioni', testo: 'Approvazioni',  url: '/admin/approvazioni', badge: typeof inAttesa !== 'undefined' ? inAttesa : null },
+        { id: 'approvazioni', testo: 'Approvazioni',  url: '/admin/approvazioni' },
         { id: 'tavoli',       testo: 'Tavoli',        url: '/admin/tavoli' },
         { id: 'calendario',   testo: 'Calendario',    url: '/admin/calendario' },
         { gruppo: 'Struttura' },
@@ -44,11 +50,14 @@
       // permesso il middleware li rimanda indietro con un messaggio chiaro,
       // il che e' piu' comprensibile di una voce che sparisce senza spiegazione.
       const attiva = paginaCorrente === voce.id;
+      const conteggio = Number(contatori[voce.id]) || 0;
     %>
     <a href="<%= voce.url %>" class="barra__voce <%= attiva ? 'barra__voce--attiva' : '' %>"
        <%= attiva ? 'aria-current="page"' : '' %>>
       <span><%= voce.testo %></span>
-      <% if (voce.badge) { %><span class="conteggio"><%= voce.badge %></span><% } %>
+      <% if (conteggio > 0) { %>
+        <span class="conteggio" aria-label="<%= conteggio %> da gestire"><%= conteggio %></span>
+      <% } %>
     </a>
   <% } %>
 <% }); %>

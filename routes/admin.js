@@ -31,7 +31,9 @@ const {
   euro
 } = require('../services/commissions');
 
-router.use(requireAdmin, adminLimiter, caricaGerarchia);
+const { datiNavigazione } = require('../middleware/navigazione');
+
+router.use(requireAdmin, adminLimiter, caricaGerarchia, datiNavigazione);
 
 /** Id dei PR della gerarchia dell'admin collegato. */
 function ambito(req) {
@@ -68,13 +70,16 @@ router.get('/riepilogo', async (req, res, next) => {
     const { totali, calcolo, avvisi, impostazioni } = await computeAdminEconomics({ adminId });
     const prIds = ambito(req);
 
-    const [inAttesa, andamento, richiestePr] = await Promise.all([
-      tavoliSrv.contaInAttesa(prIds),
-      getAndamentoMensile(prIds, 6),
-      get("SELECT COUNT(*) AS n FROM richieste_creazione_pr WHERE stato = 'in_attesa'")
-    ]);
+    // I conteggi delle cose da gestire arrivano gia' dal middleware della barra
+    // di navigazione: ricalcolarli qui significherebbe avere due numeri che
+    // possono discordare tra loro.
+    const inAttesa = res.locals.badge.approvazioni;
+    const richiestePrAperte = res.locals.badge['richieste-pr'];
 
-    const ultimiTavoli = await tavoliSrv.elenca({ prIds, limite: 8 });
+    const [andamento, ultimiTavoli] = await Promise.all([
+      getAndamentoMensile(prIds, 6),
+      tavoliSrv.elenca({ prIds, limite: 8 })
+    ]);
 
     res.render(
       'admin/riepilogo',
@@ -84,7 +89,7 @@ router.get('/riepilogo', async (req, res, next) => {
         impostazioni,
         avvisi,
         inAttesa,
-        richiestePrAperte: richiestePr ? richiestePr.n : 0,
+        richiestePrAperte,
         andamento,
         ultimiTavoli,
         migliori: [...calcolo.elenco]

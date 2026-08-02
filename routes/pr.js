@@ -26,7 +26,9 @@ const pagamentiSrv = require('../services/pagamenti');
 const { all, run } = require('../services/db-helpers');
 const { computeCommissions, getAndamentoMensile, euro } = require('../services/commissions');
 
-router.use(requirePr, apiLimiter, caricaGerarchia);
+const { datiNavigazione } = require('../middleware/navigazione');
+
+router.use(requirePr, apiLimiter, caricaGerarchia, datiNavigazione);
 
 /** Id del PR collegato e di tutti i suoi discendenti. */
 function ambito(req) {
