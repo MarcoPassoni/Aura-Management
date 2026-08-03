@@ -1,4 +1,4 @@
-// Schema del database - definizione unica e idempotente.
+// Schema del database: definizione unica, idempotente, applicata a ogni avvio.
 //
 // Differenze rispetto allo schema originale:
 //
@@ -11,20 +11,26 @@
 //    `tot_persone_portate`, `provvigioni_totali_maturate`,
 //    `provvigioni_totali_pagate`, e rimosse le tabelle `pr_stats` e
 //    `andamento_staff_mensile`. Erano cache incrementali che nessuno
-//    decrementava quando un tavolo veniva modificato o cancellato: la causa
-//    principale dei numeri che non tornavano. Tutti quei valori ora sono
-//    calcolati al volo da services/commissions.js.
+//    decrementava quando un tavolo veniva modificato o cancellato.
 //
 //  * `pagamenti_provvigioni.pagante_tipo` distingue se a pagare e' stato un
 //    admin o un PR. Prima `pr_pagante_id` conteneva indifferentemente l'id di
 //    un admin o di un PR, due insiemi di id che possono coincidere.
+//
+//  * `tavoli.incasso_effettivo` separa il preventivo dal consuntivo: le
+//    provvigioni si calcolano sull'incasso reale quando c'e', sul preventivo
+//    finche' non c'e'.
+//
+//  * `quote_tavolo` fotografa le percentuali al momento dell'approvazione, cosi'
+//    che cambiare una percentuale non riscriva il passato gia' pagato.
 
 const { run, all, get } = require('../services/db-helpers');
 const { initSettingsSchema } = require('../services/settings');
+const quote = require('../services/quote');
 
 const TAVOLO_STATI = ['in_attesa', 'approvato', 'rifiutato'];
 
-async function initSchema() {
+async function initSchema({ silenzioso = false } = {}) {
   // ---- Utenti -------------------------------------------------------------
   await run(`CREATE TABLE IF NOT EXISTS admin (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,19 +40,6 @@ async function initSchema() {
     nickname TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     creato_il TEXT DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  await run(`CREATE TABLE IF NOT EXISTS pre_admin (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fk_admin INTEGER NOT NULL,
-    nome TEXT NOT NULL,
-    cognome TEXT NOT NULL,
-    numero_telefono TEXT NOT NULL,
-    nickname TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    attivo INTEGER NOT NULL DEFAULT 1,
-    creato_il TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(fk_admin) REFERENCES admin(id)
   )`);
 
   // `fk_padre` punta a admin.id oppure a pr.id: due insiemi di identificativi
@@ -74,6 +67,11 @@ async function initSchema() {
   )`);
 
   // ---- Tavoli -------------------------------------------------------------
+  //
+  // `spesa_prevista` e' il preventivo dichiarato alla prenotazione.
+  // `incasso_effettivo` e' il conto reale della serata, inserito dopo.
+  // Le provvigioni usano il secondo se c'e', il primo altrimenti: la base di
+  // calcolo e' sempre una sola e sempre visibile nell'interfaccia.
   await run(`CREATE TABLE IF NOT EXISTS tavoli (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     pr_id INTEGER NOT NULL,
@@ -81,6 +79,7 @@ async function initSchema() {
     nome_tavolo TEXT NOT NULL,
     numero_persone INTEGER NOT NULL CHECK(numero_persone > 0),
     spesa_prevista REAL NOT NULL CHECK(spesa_prevista >= 0),
+    incasso_effettivo REAL CHECK(incasso_effettivo IS NULL OR incasso_effettivo >= 0),
     omaggi TEXT,
     note_tavolo TEXT,
     stato TEXT NOT NULL DEFAULT 'in_attesa'
@@ -92,6 +91,33 @@ async function initSchema() {
     deciso_il TEXT,
     deciso_da_nickname TEXT,
     motivo_rifiuto TEXT,
+    FOREIGN KEY(pr_id) REFERENCES pr(id)
+  )`);
+
+  // Database gia' esistenti: la colonna viene aggiunta senza CHECK, perche'
+  // ALTER TABLE non lo consente in tutte le versioni di SQLite. Il controllo
+  // di non negativita' e' comunque applicato da services/validation.js, che e'
+  // l'unico punto da cui un importo puo' entrare.
+  await assicuraColonna('tavoli', 'incasso_effettivo', 'REAL');
+
+  // ---- Quote di provvigione congelate -------------------------------------
+  //
+  // Una riga per ogni collaboratore che partecipa a un tavolo approvato, con la
+  // percentuale in vigore in quel momento. Vedi services/quote.js per il
+  // ragionamento completo.
+  await run(`CREATE TABLE IF NOT EXISTS quote_tavolo (
+    tavolo_id INTEGER NOT NULL,
+    pr_id INTEGER NOT NULL,
+    livello INTEGER NOT NULL CHECK(livello >= 0),
+    percentuale REAL NOT NULL
+      CHECK(percentuale >= 0 AND percentuale <= 100),
+    percentuale_sotto REAL NOT NULL DEFAULT 0
+      CHECK(percentuale_sotto >= 0 AND percentuale_sotto <= 100),
+    debitore_tipo TEXT NOT NULL CHECK(debitore_tipo IN ('admin', 'pr')),
+    debitore_id INTEGER NOT NULL,
+    admin_id INTEGER NOT NULL,
+    PRIMARY KEY (tavolo_id, pr_id),
+    FOREIGN KEY(tavolo_id) REFERENCES tavoli(id) ON DELETE CASCADE,
     FOREIGN KEY(pr_id) REFERENCES pr(id)
   )`);
 
@@ -130,6 +156,24 @@ async function initSchema() {
 
   await initSettingsSchema();
   await creaIndici();
+
+  // I tavoli approvati prima dell'introduzione delle quote non hanno una
+  // fotografia della catena: la si ricostruisce dalla struttura attuale, una
+  // volta sola. A regime questa chiamata non trova nulla da fare.
+  const recupero = await quote.ricostruisciMancanti();
+  if (!silenzioso && (recupero.ricostruiti || recupero.falliti.length)) {
+    console.log(
+      `[SCHEMA] Quote di provvigione ricostruite per ${recupero.ricostruiti} tavoli gia' approvati.`
+    );
+    if (recupero.falliti.length) {
+      console.warn(
+        `[SCHEMA] ${recupero.falliti.length} tavoli approvati non hanno una catena ` +
+          'ricostruibile e restano esclusi dai calcoli: vedi la pagina Verifica.'
+      );
+    }
+  }
+
+  return recupero;
 }
 
 async function creaIndici() {
@@ -140,7 +184,11 @@ async function creaIndici() {
     'CREATE INDEX IF NOT EXISTS idx_tavoli_stato ON tavoli(stato)',
     'CREATE INDEX IF NOT EXISTS idx_tavoli_data ON tavoli(data)',
     'CREATE INDEX IF NOT EXISTS idx_tavoli_stato_data ON tavoli(stato, data)',
+    'CREATE INDEX IF NOT EXISTS idx_quote_pr ON quote_tavolo(pr_id)',
+    'CREATE INDEX IF NOT EXISTS idx_quote_debitore ON quote_tavolo(debitore_tipo, debitore_id)',
+    'CREATE INDEX IF NOT EXISTS idx_quote_admin ON quote_tavolo(admin_id)',
     'CREATE INDEX IF NOT EXISTS idx_pagamenti_dest ON pagamenti_provvigioni(pr_destinatario_id)',
+    'CREATE INDEX IF NOT EXISTS idx_pagamenti_coppia ON pagamenti_provvigioni(pr_destinatario_id, pagante_tipo, pagante_id)',
     'CREATE INDEX IF NOT EXISTS idx_richieste_pr_stato ON richieste_creazione_pr(stato)'
   ];
   // Durante una migrazione gli indici possono riferirsi a colonne che esistono
@@ -153,6 +201,14 @@ async function creaIndici() {
       if (!/no such column|no such table/i.test(err.message)) throw err;
     }
   }
+}
+
+/** Aggiunge una colonna se manca. Non tocca nulla se e' gia' presente. */
+async function assicuraColonna(tabella, colonna, definizione) {
+  const colonne = await colonneDi(tabella);
+  if (colonne.size === 0 || colonne.has(colonna)) return false;
+  await run(`ALTER TABLE ${tabella} ADD COLUMN ${colonna} ${definizione}`);
+  return true;
 }
 
 /** Elenco delle tabelle realmente presenti nel database. */
@@ -179,6 +235,7 @@ async function contaRighe(tabella) {
 module.exports = {
   initSchema,
   creaIndici,
+  assicuraColonna,
   tabelleEsistenti,
   colonneDi,
   contaRighe,

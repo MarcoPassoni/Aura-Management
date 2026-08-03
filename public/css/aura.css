@@ -331,10 +331,25 @@ a:hover {
   letter-spacing: -0.02em;
 }
 
+/* Nelle schede che contengono una parola invece di un importo, la dimensione da
+   titolo e' fuori scala: il valore diventa piu' grande dell'intestazione della
+   pagina. */
+.scheda__valore--testo {
+  font-size: 1.1rem;
+}
+
 .scheda__nota {
   font-size: 0.78rem;
   color: var(--testo-tenue);
   margin-top: 0.25rem;
+  text-wrap: pretty;
+}
+
+/* Griglia di dati dentro un pannello: stessa disposizione delle schede ma senza
+   la cornice, per i blocchi che stanno gia' dentro un riquadro. */
+.griglia--compatta {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  margin-bottom: 1rem;
 }
 
 .pannello {
@@ -403,6 +418,39 @@ tbody tr:hover {
   background: var(--superficie-alt);
 }
 
+/* Riga di totali: chiude la tabella e non deve confondersi con i dati. */
+tfoot th,
+tfoot td {
+  padding: 0.7rem 1.1rem;
+  border-top: 2px solid var(--bordo-forte);
+  font-weight: 600;
+  text-align: left;
+  background: var(--superficie-alt);
+}
+
+tfoot td.num {
+  text-align: right;
+}
+
+/* La riga di una voce che non fa piu' parte della struttura attuale: resta
+   leggibile ma non compete con le altre. */
+.riga--attenuata td {
+  color: var(--testo-tenue);
+}
+
+/* La riga di qualcosa che non torna: si deve vedere scorrendo la pagina. */
+.riga--allarme td {
+  background: var(--negativo-sfondo);
+}
+
+.riga--allarme:hover td {
+  background: var(--negativo-sfondo);
+}
+
+.cella-espansa {
+  background: var(--superficie-alt);
+}
+
 .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -415,6 +463,14 @@ tbody tr:hover {
 
 .num--negativo {
   color: var(--negativo);
+}
+
+/* Un importo che e' stato sostituito da un altro (il preventivo quando c'e' il
+   consuntivo): resta consultabile ma si vede che non e' quello in uso. */
+.num--superato {
+  color: var(--testo-debole);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
 }
 
 .principale {
@@ -484,6 +540,38 @@ tbody tr:hover {
   color: #fff;
 }
 
+/* Lavoro arretrato e dati che non tornano sono due cose diverse: il secondo non
+   si smaltisce lavorando, si corregge. */
+.conteggio--allarme {
+  background: var(--negativo);
+}
+
+/* Segnale minuto accanto a un importo: dice su quale numero e' stato calcolato. */
+.segnale {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  border: 1px solid;
+  vertical-align: middle;
+  margin-left: 0.3rem;
+}
+
+.segnale--consuntivo {
+  color: var(--positivo);
+  border-color: currentcolor;
+  background: var(--positivo-sfondo);
+}
+
+.segnale--preventivo {
+  color: var(--testo-debole);
+  border-color: var(--bordo-forte);
+  background: var(--superficie-alt);
+}
+
 /* --------------------------------------------------------------- moduli */
 .modulo {
   display: grid;
@@ -549,6 +637,36 @@ textarea {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
+}
+
+.campo--staccato {
+  margin-bottom: 0.75rem;
+}
+
+.campo--medio {
+  max-width: 340px;
+}
+
+.modulo--staccato {
+  margin-top: 0.9rem;
+}
+
+/* Divide due gruppi di azioni dentro la stessa riga espansa. */
+.separatore {
+  border: 0;
+  border-top: 1px solid var(--bordo);
+  margin: 0.9rem 0;
+}
+
+.nota-finale {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--testo-tenue);
+  text-wrap: pretty;
+}
+
+.dettagli--staccato {
+  margin-bottom: 1rem;
 }
 
 .campo--riga input[type="checkbox"] {
@@ -807,6 +925,19 @@ textarea {
   font-size: 0.8rem;
   color: var(--testo-tenue);
   margin-top: 0.25rem;
+}
+
+.errore__titolo {
+  margin-bottom: 0.5rem;
+}
+
+.errore__testo {
+  margin-top: 0;
+  text-wrap: pretty;
+}
+
+.errore__azione {
+  margin-top: 1rem;
 }
 
 /* -------------------------------------------------------------- utilita' */

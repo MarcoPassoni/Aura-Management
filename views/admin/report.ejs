@@ -24,22 +24,39 @@
 <div class="griglia">
   <div class="scheda">
     <div class="scheda__etichetta">Incasso</div>
-    <div class="scheda__valore"><%= euro(totali.fatturato) %></div>
-    <div class="scheda__nota"><%= numero(totali.tavoli) %> tavoli approvati</div>
+    <div class="scheda__valore"><%= euro(totali.incasso) %></div>
+    <div class="scheda__nota">
+      <%= numero(totali.tavoli) %> tavoli approvati, <%= numero(totali.persone) %> persone
+    </div>
   </div>
   <div class="scheda">
-    <div class="scheda__etichetta">Provvigioni totali</div>
+    <div class="scheda__etichetta">Provvigioni</div>
     <div class="scheda__valore"><%= euro(totali.provvigioni) %></div>
-    <div class="scheda__nota">Somma dei guadagni netti di tutti</div>
+    <div class="scheda__nota">Costo a carico dell'amministrazione</div>
+  </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Somma di cio' che resta a ciascuno</div>
+    <div class="scheda__valore"><%= euro(totali.trattenutoTotale) %></div>
+    <div class="scheda__nota">
+      <% if (Math.abs(totali.trattenutoTotale - totali.provvigioni) < 0.005) { %>
+        Coincide con le provvigioni, come deve essere
+      <% } else { %>
+        <span class="num--negativo">
+          Non coincide con le provvigioni: segnalalo, e' un errore di calcolo
+        </span>
+      <% } %>
+    </div>
   </div>
 </div>
 
 <div class="avviso avviso--informativo">
   <div>
     <strong>Come si legge.</strong>
-    Ogni responsabile riceve la sua percentuale sull'incasso di tutta la propria struttura
-    e ne gira una parte ai collaboratori: quello che gli resta e' il <em>guadagno netto</em>.
-    La somma dei guadagni netti coincide sempre con il costo totale a carico dell'amministrazione.
+    Ogni responsabile matura la propria percentuale sull'incasso di tutta la struttura
+    che ha sotto (<em>gli spetta</em>), ne gira una parte ai propri collaboratori
+    (<em>gira sotto</em>) e tiene la differenza (<em>gli resta</em>).
+    La somma di cio' che resta a tutti coincide sempre, al centesimo, con il costo
+    totale a carico dell'amministrazione.
   </div>
 </div>
 
@@ -47,7 +64,10 @@
   <div class="pannello__testa">
     <h2>Dettaglio per collaboratore</h2>
     <% if (periodoFiltrato) { %>
-      <span class="secondario">Periodo filtrato: i saldi non sono mostrati</span>
+      <span class="secondario">
+        Periodo filtrato: i saldi non sono mostrati, perche' un pagamento non
+        appartiene a un mese ma salda un debito complessivo
+      </span>
     <% } %>
   </div>
 
@@ -59,41 +79,62 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">%</th>
-              <th class="num">Incasso proprio</th>
-              <th class="num">Incasso struttura</th>
-              <th class="num">Maturato lordo</th>
-              <th class="num">Gira ai collaboratori</th>
-              <th class="num">Guadagno netto</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">%</th>
+              <th scope="col" class="num">Incasso proprio</th>
+              <th scope="col" class="num">Incasso struttura</th>
+              <th scope="col" class="num">Gli spetta</th>
+              <th scope="col" class="num">Gira sotto</th>
+              <th scope="col" class="num">Gli resta</th>
               <% if (!periodoFiltrato) { %>
-                <th class="num">Ricevuto</th>
-                <th class="num">Da ricevere</th>
+                <th scope="col" class="num">Ricevuto</th>
+                <th scope="col" class="num">Da ricevere</th>
               <% } %>
             </tr>
           </thead>
           <tbody>
             <% elenco.forEach(function (p) { %>
-              <tr>
+              <tr<%= p.fuoriStruttura ? ' class="riga--attenuata"' : '' %>>
                 <td class="<%= rientro(p.livello) %>">
                   <div class="principale"><%= p.nickname %></div>
                   <div class="secondario">
-                    <%= p.padreNickname ? 'sotto ' + p.padreNickname : 'primo livello' %>
+                    <% if (p.fuoriStruttura) { %>
+                      non piu' nella struttura
+                    <% } else { %>
+                      <%= p.padreNickname ? 'sotto ' + p.padreNickname : 'primo livello' %>
+                    <% } %>
                   </div>
                 </td>
-                <td class="num"><%= percentuale(p.percentuale) %></td>
+                <td class="num">
+                  <% if (p.percentualeApplicataMin === null) { %>
+                    <%= percentuale(p.percentuale) %>
+                  <% } else if (p.percentualeApplicataMin === p.percentualeApplicataMax) { %>
+                    <%= percentuale(p.percentualeApplicataMin) %>
+                  <% } else { %>
+                    <span title="Percentuali diverse congelate su tavoli diversi">
+                      <%= percentuale(p.percentualeApplicataMin) %>&ndash;<%= percentuale(p.percentualeApplicataMax) %>
+                    </span>
+                  <% } %>
+                </td>
                 <td class="num"><%= euro(p.fatturatoDiretto) %></td>
                 <td class="num"><%= euro(p.fatturatoSottoalbero) %></td>
-                <td class="num"><%= euro(p.maturatoLordo) %></td>
-                <td class="num"><%= p.dovutoAiFigli ? euro(p.dovutoAiFigli) : '-' %></td>
-                <td class="num principale <%= segno(p.guadagnoNetto) %>"><%= euro(p.guadagnoNetto) %></td>
+                <td class="num"><%= euro(p.maturato) %></td>
+                <td class="num"><%= p.giratoAiCollaboratori ? euro(p.giratoAiCollaboratori) : '-' %></td>
+                <td class="num principale <%= segno(p.trattenuto) %>"><%= euro(p.trattenuto) %></td>
                 <% if (!periodoFiltrato) { %>
                   <td class="num"><%= euro(p.ricevuto) %></td>
-                  <td class="num <%= segno(p.saldoDaRicevere) %>"><%= euro(p.saldoDaRicevere) %></td>
+                  <td class="num <%= segno(p.saldo) %>"><%= euro(p.saldo) %></td>
                 <% } %>
               </tr>
             <% }); %>
           </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="6">Totale</th>
+              <td class="num principale"><%= euro(totali.trattenutoTotale) %></td>
+              <% if (!periodoFiltrato) { %><td></td><td></td><% } %>
+            </tr>
+          </tfoot>
         </table>
       </div>
     <% } %>

@@ -335,6 +335,13 @@ async function eliminaObsolete(tabelle) {
     log('');
     log('Migrazione in corso:');
 
+    // La ricostruzione della tabella pr passa da DROP TABLE: con i vincoli di
+    // integrita' attivi fallirebbe, perche' quote_tavolo e i pagamenti la
+    // referenziano. Si disattivano per la durata della migrazione e si
+    // riattivano subito dopo. PRAGMA non ha effetto dentro una transazione,
+    // quindi va eseguito prima di aprirla.
+    await run('PRAGMA foreign_keys = OFF');
+
     await transaction(async () => {
       await rimuoviTriggerObsoleti();
       await migraTavoli(tabelle);
@@ -346,10 +353,24 @@ async function eliminaObsolete(tabelle) {
     // principale per non mescolare DDL e DML sullo stesso oggetto.
     await migraPagamenti(await schema.tabelleEsistenti());
     await schema.creaIndici();
+    await run('PRAGMA foreign_keys = ON');
+
+    // I tavoli importati come approvati non hanno ancora una fotografia della
+    // catena di provvigioni: la si costruisce dalla struttura appena migrata.
+    const quote = require('../services/quote');
+    const recupero = await quote.ricostruisciMancanti();
+    log(`  Ripartizioni congelate per ${recupero.ricostruiti} tavoli approvati.`);
+    if (recupero.falliti.length) {
+      log('');
+      log(`  ATTENZIONE: ${recupero.falliti.length} tavoli approvati non hanno una catena`);
+      log('  ricostruibile e non entreranno nei calcoli. Sistema il responsabile del');
+      log('  venditore dalla pagina Staff, poi riapri e riapprova questi tavoli:');
+      recupero.falliti.slice(0, 20).forEach((f) => log(`    #${f.tavoloId} ${f.data} ${f.nome}: ${f.motivo}`));
+    }
 
     log('');
     log('Situazione finale:');
-    for (const t of ['admin', 'pre_admin', 'pr', 'tavoli', 'pagamenti_provvigioni']) {
+    for (const t of ['admin', 'pr', 'tavoli', 'quote_tavolo', 'pagamenti_provvigioni']) {
       log(`  ${t.padEnd(24)} ${await schema.contaRighe(t)} righe`);
     }
     const perStato = await all('SELECT stato, COUNT(*) AS n FROM tavoli GROUP BY stato');

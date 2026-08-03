@@ -24,6 +24,7 @@
       <% } %>
 
       <form method="post" action="/login" class="modulo" autocomplete="on">
+        <%- include('partials/csrf') %>
         <div class="campo">
           <label class="campo__etichetta" for="nickname">Nickname</label>
           <input type="text" id="nickname" name="nickname" required autofocus

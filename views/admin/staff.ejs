@@ -14,6 +14,7 @@
 
   <div class="pannello__corpo" id="modulo-nuovo" hidden>
     <form method="post" action="/admin/staff/crea" class="modulo" autocomplete="off">
+      <%- include('../partials/csrf') %>
       <div class="modulo modulo--due">
         <div class="campo">
           <label class="campo__etichetta" for="n-nome">Nome</label>
@@ -49,7 +50,7 @@
         <div class="campo">
           <label class="campo__etichetta" for="n-perc">Percentuale provvigione</label>
           <input type="number" id="n-perc" name="percentuale_provvigione"
-                 min="0" max="100" step="0.01" value="0" required>
+                 min="0" max="100" step="0.01" value="0" required inputmode="decimal">
           <span class="campo__aiuto">Non puo' superare quella del responsabile.</span>
         </div>
       </div>
@@ -69,7 +70,9 @@
 <div class="pannello">
   <div class="pannello__testa">
     <h2>Struttura</h2>
-    <span class="secondario"><%= numero(staff.length) %> collaboratori</span>
+    <span class="secondario">
+      <%= numero(staff.length) %> <%= staff.length === 1 ? 'collaboratore' : 'collaboratori' %>
+    </span>
   </div>
 
   <div class="pannello__corpo pannello__corpo--stretto">
@@ -80,26 +83,39 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th>Responsabile</th>
-              <th class="num">Percentuale</th>
-              <th class="num">Fatturato</th>
-              <th class="num">Da ricevere</th>
-              <th>Stato</th>
-              <th></th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col">Responsabile</th>
+              <th scope="col" class="num">Percentuale</th>
+              <th scope="col" class="num">Incasso struttura</th>
+              <th scope="col" class="num">Da ricevere</th>
+              <th scope="col">Stato</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
             <% staff.forEach(function (p) { %>
-              <tr>
+              <tr<%= p.fuoriStruttura ? ' class="riga--attenuata"' : '' %>>
                 <td class="<%= rientro(p.livello) %>">
                   <div class="principale"><%= p.nickname %></div>
                   <div class="secondario"><%= p.nome %> <%= p.cognome %></div>
                 </td>
-                <td class="secondario"><%= p.padreNickname || 'Amministratore' %></td>
-                <td class="num"><span class="pastiglia"><%= percentuale(p.percentuale) %></span></td>
+                <td class="secondario">
+                  <%= p.padreNickname || 'Amministrazione' %>
+                  <% if (p.fuoriStruttura) { %>
+                    <div><span class="stato stato--neutro">fuori struttura</span></div>
+                  <% } %>
+                </td>
+                <td class="num">
+                  <span class="pastiglia"><%= percentuale(p.percentuale) %></span>
+                  <% if (p.percentualeApplicataMin !== null &&
+                         p.percentualeApplicataMax !== p.percentualeApplicataMin) { %>
+                    <div class="secondario" title="Percentuali congelate sui tavoli gia' approvati">
+                      storico <%= percentuale(p.percentualeApplicataMin) %>&ndash;<%= percentuale(p.percentualeApplicataMax) %>
+                    </div>
+                  <% } %>
+                </td>
                 <td class="num"><%= euro(p.fatturatoSottoalbero) %></td>
-                <td class="num <%= segno(p.saldoDaRicevere) %>"><%= euro(p.saldoDaRicevere) %></td>
+                <td class="num principale <%= segno(p.saldo) %>"><%= euro(p.saldo) %></td>
                 <td>
                   <% if (!p.attivo) { %>
                     <span class="stato stato--neutro">Disattivato</span>
@@ -111,13 +127,14 @@
                 </td>
                 <td>
                   <button type="button" class="pulsante pulsante--piccolo"
-                          data-apre="modifica-<%= p.id %>" aria-expanded="false">Modifica</button>
+                          data-apre="modifica-<%= p.id %>" aria-expanded="false">Gestisci</button>
                 </td>
               </tr>
 
               <tr id="modifica-<%= p.id %>" hidden>
-                <td colspan="7" style="background:var(--superficie-alt)">
+                <td colspan="7" class="cella-espansa">
                   <form method="post" action="/admin/staff/<%= p.id %>/modifica" class="modulo" autocomplete="off">
+                    <%- include('../partials/csrf') %>
                     <div class="modulo modulo--due">
                       <div class="campo">
                         <label class="campo__etichetta" for="m-nome-<%= p.id %>">Nome</label>
@@ -138,12 +155,13 @@
                       <div class="campo">
                         <label class="campo__etichetta" for="m-perc-<%= p.id %>">Percentuale</label>
                         <input type="number" id="m-perc-<%= p.id %>" name="percentuale_provvigione"
-                               value="<%= p.percentuale %>" min="0" max="100" step="0.01">
+                               value="<%= p.percentuale %>" min="0" max="100" step="0.01" inputmode="decimal">
+                        <span class="campo__aiuto">Vale dai prossimi tavoli approvati. Quelli gia' approvati restano al loro valore.</span>
                       </div>
                       <div class="campo">
                         <label class="campo__etichetta" for="m-pwd-<%= p.id %>">Nuova password</label>
                         <input type="text" id="m-pwd-<%= p.id %>" name="password" maxlength="200"
-                               placeholder="Lascia vuoto per non cambiarla">
+                               placeholder="Lascia vuoto per non cambiarla" autocomplete="new-password">
                       </div>
                     </div>
 
@@ -157,14 +175,39 @@
                     </div>
                   </form>
 
-                  <div class="azioni" style="margin-top:.75rem">
+                  <hr class="separatore">
+
+                  <form method="post" action="/admin/staff/<%= p.id %>/sposta" class="filtri">
+                    <%- include('../partials/csrf') %>
+                    <div class="campo" style="flex:2">
+                      <label class="campo__etichetta" for="s-padre-<%= p.id %>">Cambia responsabile</label>
+                      <select id="s-padre-<%= p.id %>" name="padre_id" required>
+                        <% p.possibiliPadri.forEach(function (o) { %>
+                          <option value="<%= o.valore %>"
+                            <%= (p.padreId && o.valore === 'pr:' + p.padreId) ? 'selected' : '' %>>
+                            <%= o.etichetta %>
+                          </option>
+                        <% }); %>
+                      </select>
+                      <span class="campo__aiuto">
+                        Quello gia' maturato resta a carico del responsabile precedente.
+                      </span>
+                    </div>
+                    <button type="submit" class="pulsante">Sposta</button>
+                  </form>
+
+                  <hr class="separatore">
+
+                  <div class="azioni">
                     <% if (p.attivo) { %>
                       <form method="post" action="/admin/staff/<%= p.id %>/disattiva"
-                            data-conferma="Disattivare <%= p.nickname %>? Non potra' piu' accedere, ma lo storico dei suoi tavoli resta.">
+                            data-conferma="Disattivare <%= p.nickname %>? Non potra' piu' accedere, ma lo storico dei suoi tavoli e i compensi ancora da versare restano.">
+                        <%- include('../partials/csrf') %>
                         <button type="submit" class="pulsante pulsante--pericolo pulsante--piccolo">Disattiva</button>
                       </form>
                     <% } else { %>
                       <form method="post" action="/admin/staff/<%= p.id %>/riattiva">
+                        <%- include('../partials/csrf') %>
                         <button type="submit" class="pulsante pulsante--piccolo">Riattiva</button>
                       </form>
                     <% } %>

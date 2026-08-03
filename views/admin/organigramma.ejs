@@ -11,7 +11,10 @@
       <% if (nodo.poteri) { %><span class="stato stato--approvato">Delega</span><% } %>
       <span class="albero__dati">
         <span>Struttura <%= euro(nodo.fatturato) %></span>
-        <span>Netto <%= euro(nodo.netto) %></span>
+        <span>Gli resta <%= euro(nodo.trattenuto) %></span>
+        <% if (nodo.saldo > 0) { %>
+          <span class="num--negativo">Da ricevere <%= euro(nodo.saldo) %></span>
+        <% } %>
       </span>
     </div>
     <% if (nodo.figli && nodo.figli.length) { %>
@@ -49,7 +52,10 @@
 <div class="avviso avviso--informativo">
   <div>
     <strong>Struttura</strong> e' l'incasso di quel collaboratore piu' quello di tutti
-    i suoi sottoposti. <strong>Netto</strong> e' quanto gli resta dopo aver girato
-    la quota ai propri collaboratori.
+    i suoi sottoposti. <strong>Gli resta</strong> e' quanto trattiene dopo aver girato
+    la quota ai propri collaboratori. <strong>Da ricevere</strong> compare solo quando
+    c'e' un saldo ancora aperto.
+    L'albero mostra la struttura di oggi; gli importi restano quelli congelati sui
+    tavoli quando sono stati approvati.
   </div>
 </div>

@@ -12,6 +12,7 @@ const router = express.Router();
 const { findByNickname, verifyPassword } = require('../services/users');
 const { loginLimiter } = require('../utils/rate-limiter');
 const { logSecurityEvent } = require('../utils/secure-logger');
+const { rinnova } = require('../middleware/csrf');
 
 const MESSAGGIO_CREDENZIALI = 'Nickname o password non corretti.';
 
@@ -55,6 +56,9 @@ router.post('/login', loginLimiter, async (req, res, next) => {
     // dell'autenticazione resti valido dopo il login.
     req.session.regenerate((err) => {
       if (err) return next(err);
+      // La rigenerazione azzera la sessione, quindi anche il token anti-CSRF:
+      // senza questa riga il primo form dopo il login verrebbe respinto.
+      rinnova(req);
       req.session.user = {
         id: utente.id,
         ruolo: utente.ruolo,
@@ -73,15 +77,15 @@ router.post('/login', loginLimiter, async (req, res, next) => {
   }
 });
 
-function esegui(req, res) {
+// Solo POST: con il logout raggiungibile via GET bastava indurre il browser a
+// caricare /logout (per esempio con un'immagine in una pagina qualunque) per
+// buttare fuori l'utente collegato.
+router.post('/logout', (req, res) => {
   req.session.destroy(() => {
     res.clearCookie('aura.sid');
     res.redirect('/login');
   });
-}
-
-router.post('/logout', esegui);
-router.get('/logout', esegui);
+});
 
 function destinazionePerRuolo(ruolo) {
   return ruolo === 'admin' ? '/admin/riepilogo' : '/pr/dashboard';

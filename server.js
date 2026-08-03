@@ -12,6 +12,8 @@ const favicon = require('serve-favicon');
 const expressLayouts = require('express-ejs-layouts');
 
 const { initSchema } = require('./models/schema');
+const { chiudi: chiudiDatabase } = require('./models/db');
+const { csrf } = require('./middleware/csrf');
 const { logger } = require('./utils/secure-logger');
 
 const app = express();
@@ -33,7 +35,12 @@ if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
 
 // ---------------------------------------------------------------- sicurezza
 app.disable('x-powered-by');
-app.set('trust proxy', 1); // necessario perche' i rate limiter vedano l'IP reale
+
+// Ci si fida dell'intestazione X-Forwarded-For solo in produzione, dove davanti
+// c'e' davvero un proxy che la imposta. In locale fidarsene significa lasciare
+// che chiunque dichiari l'indirizzo che preferisce, e quindi aggiri i limiti
+// sui tentativi di accesso semplicemente cambiandolo a ogni richiesta.
+app.set('trust proxy', IN_PRODUZIONE ? 1 : false);
 
 app.use(
   helmet({
@@ -69,6 +76,13 @@ app.use(express.urlencoded({ extended: false, limit: '100kb' }));
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
+// I file statici vengono serviti PRIMA della sessione: un foglio di stile o
+// un'immagine non hanno bisogno di sapere chi e' collegato, e passare dalla
+// sessione significava una lettura sul database per ogni singolo file.
+const faviconPath = path.join(__dirname, 'public', 'img', 'favicon.ico');
+if (fs.existsSync(faviconPath)) app.use(favicon(faviconPath));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: IN_PRODUZIONE ? '7d' : 0 }));
+
 // Le sessioni vivono su disco: con il MemoryStore predefinito ogni riavvio del
 // server disconnetteva tutti gli utenti collegati, e la memoria cresceva senza
 // mai liberarsi.
@@ -92,10 +106,9 @@ app.use(
 );
 app.use(flash());
 
-app.use(express.static(path.join(__dirname, 'public'), { maxAge: IN_PRODUZIONE ? '7d' : 0 }));
-
-const faviconPath = path.join(__dirname, 'public', 'img', 'favicon.ico');
-if (fs.existsSync(faviconPath)) app.use(favicon(faviconPath));
+// Il controllo anti-CSRF sta subito dopo la sessione e prima di ogni route:
+// nessuna operazione puo' saltarlo per dimenticanza.
+app.use(csrf);
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -177,10 +190,23 @@ app.use((err, req, res, next) => {
     console.log(`Ambiente: ${process.env.NODE_ENV || 'sviluppo'}`);
   });
 
+  // Chiusura ordinata: si smette di accettare richieste, si lasciano finire
+  // quelle in corso e solo alla fine si chiude il database. Chiuderlo prima
+  // significherebbe far fallire una transazione a meta'.
+  let inChiusura = false;
   const chiudi = (segnale) => {
+    if (inChiusura) return;
+    inChiusura = true;
     console.log(`\n${segnale} ricevuto, chiusura in corso.`);
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(1), 5000).unref();
+    server.close(async () => {
+      try {
+        await chiudiDatabase();
+      } catch (err) {
+        console.error('Errore nella chiusura del database:', err.message);
+      }
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(1), 8000).unref();
   };
   process.on('SIGTERM', () => chiudi('SIGTERM'));
   process.on('SIGINT', () => chiudi('SIGINT'));

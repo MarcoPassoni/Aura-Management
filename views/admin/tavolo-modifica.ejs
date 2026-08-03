@@ -12,11 +12,31 @@
 
   <div class="pannello__corpo">
     <div class="avviso avviso--informativo">
-      La motivazione e' obbligatoria: viene mostrata al collaboratore, cosi' capisce
-      perche' i suoi numeri sono cambiati.
+      <div>
+        La motivazione e' obbligatoria: viene mostrata al collaboratore, cosi' capisce
+        perche' i suoi numeri sono cambiati.
+        <% if (tavolo.stato === 'approvato') { %>
+          Su un tavolo gia' approvato cambiano solo gli <strong>importi</strong>: le
+          percentuali restano quelle congelate all'approvazione.
+        <% } %>
+      </div>
     </div>
 
+    <% if (tavolo.stato === 'approvato' && quote.length) { %>
+      <details class="dettagli dettagli--staccato">
+        <summary>Percentuali congelate su questo tavolo</summary>
+        <div class="secondario">
+          <% quote.slice().reverse().forEach(function (q) { %>
+            <div><%= q.nickname %>: <%= percentuale(q.percentuale) %></div>
+          <% }); %>
+          Ridurre l'importo sotto quanto e' gia' stato pagato non e' consentito:
+          in quel caso l'operazione viene rifiutata con l'indicazione di chi e di quanto.
+        </div>
+      </details>
+    <% } %>
+
     <form method="post" action="/admin/approvazioni/<%= tavolo.id %>/modifica" class="modulo">
+      <%- include('../partials/csrf') %>
       <div class="modulo modulo--due">
         <div class="campo">
           <label class="campo__etichetta" for="data">Data</label>
@@ -30,13 +50,25 @@
         <div class="campo">
           <label class="campo__etichetta" for="numero_persone">Persone</label>
           <input type="number" id="numero_persone" name="numero_persone"
-                 value="<%= tavolo.numero_persone %>" min="1" max="500" required>
+                 value="<%= tavolo.numero_persone %>" min="1" max="500" required inputmode="numeric">
         </div>
         <div class="campo">
-          <label class="campo__etichetta" for="spesa_prevista">Importo</label>
+          <label class="campo__etichetta" for="spesa_prevista">Spesa prevista</label>
           <input type="number" id="spesa_prevista" name="spesa_prevista"
-                 value="<%= tavolo.spesa_prevista %>" min="0" max="1000000" step="0.01" required>
-          <span class="campo__aiuto">Le provvigioni si ricalcolano da sole.</span>
+                 value="<%= tavolo.spesa_prevista %>" min="0" max="1000000" step="0.01"
+                 required inputmode="decimal">
+          <span class="campo__aiuto">Il preventivo dichiarato alla prenotazione.</span>
+        </div>
+        <div class="campo">
+          <label class="campo__etichetta" for="incasso_effettivo">Incasso reale</label>
+          <input type="number" id="incasso_effettivo" name="incasso_effettivo"
+                 value="<%= tavolo.incasso_effettivo === null ? '' : tavolo.incasso_effettivo %>"
+                 min="0" max="1000000" step="0.01" inputmode="decimal"
+                 placeholder="Lascia vuoto se non ancora rilevato">
+          <span class="campo__aiuto">
+            Quando c'e', e' questo il numero su cui si calcolano le provvigioni.
+            Vuoto significa "non ancora rilevato", zero significa "nessun consumo".
+          </span>
         </div>
       </div>
 
@@ -59,7 +91,7 @@
 
       <div class="azioni">
         <button type="submit" class="pulsante pulsante--primario">Salva le modifiche</button>
-        <a href="/admin/approvazioni" class="pulsante">Annulla</a>
+        <a href="<%= ritorno %>" class="pulsante">Annulla</a>
       </div>
     </form>
   </div>

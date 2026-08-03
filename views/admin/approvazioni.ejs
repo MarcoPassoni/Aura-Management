@@ -4,9 +4,40 @@
   </div>
 <% } else { %>
 
+  <div class="griglia">
+    <div class="scheda">
+      <div class="scheda__etichetta">Richieste da valutare</div>
+      <div class="scheda__valore"><%= numero(elenco.length) %></div>
+    </div>
+    <div class="scheda">
+      <div class="scheda__etichetta">Imponibile in gioco</div>
+      <div class="scheda__valore"><%= euro(totaleImponibile) %></div>
+    </div>
+    <div class="scheda">
+      <div class="scheda__etichetta">Costo se approvi tutto</div>
+      <div class="scheda__valore"><%= euro(totaleCosto) %></div>
+      <div class="scheda__nota">Provvigioni dell'intera catena</div>
+    </div>
+  </div>
+
+  <% if (bloccati > 0) { %>
+    <div class="avviso avviso--errore" role="alert">
+      <div>
+        <%= numero(bloccati) %>
+        <%= bloccati === 1 ? 'richiesta non e\' approvabile' : 'richieste non sono approvabili' %>:
+        la catena di responsabilita' del venditore non arriva all'amministrazione.
+        Il motivo preciso e' indicato sotto ciascuna.
+      </div>
+    </div>
+  <% } %>
+
   <div class="avviso avviso--informativo">
-    Un tavolo genera provvigioni solo dopo l'approvazione. Il rifiuto non cancella
-    la richiesta: resta consultabile nello storico con il motivo indicato.
+    <div>
+      Un tavolo genera provvigioni solo dopo l'approvazione. Nel momento in cui approvi,
+      le percentuali di tutta la catena vengono <strong>congelate su questo tavolo</strong>:
+      da li' in poi cambiarle non tocchera' piu' questo importo.
+      Il rifiuto non cancella la richiesta, resta nello storico con il motivo.
+    </div>
   </div>
 
   <% elenco.forEach(function (t) { %>
@@ -23,36 +54,103 @@
       </div>
 
       <div class="pannello__corpo">
-        <div class="griglia" style="margin-bottom:1rem">
+        <div class="griglia griglia--compatta">
           <div>
             <div class="scheda__etichetta">Persone</div>
             <div class="principale"><%= numero(t.numero_persone) %></div>
           </div>
           <div>
-            <div class="scheda__etichetta">Spesa prevista</div>
-            <div class="principale"><%= euro(t.spesa_prevista) %></div>
+            <div class="scheda__etichetta">Imponibile</div>
+            <div class="principale"><%= euro(t.imponibile) %></div>
+            <div class="secondario">
+              <%= t.baseCalcolo === 'consuntivo' ? 'incasso reale gia' + ' registrato' : 'spesa prevista' %>
+            </div>
           </div>
           <div>
-            <div class="scheda__etichetta">Provvigione del richiedente</div>
-            <div class="principale"><%= euro(t.spesa_prevista * t.percentuale_provvigione / 100) %></div>
+            <div class="scheda__etichetta">Costo provvigioni</div>
+            <div class="principale <%= t.stima.ok ? '' : 'num--negativo' %>">
+              <%= t.stima.ok ? euro(t.stima.costoTotale) : 'non calcolabile' %>
+            </div>
+            <div class="secondario">se approvato adesso</div>
+          </div>
+          <div>
+            <div class="scheda__etichetta">Resta all'amministrazione</div>
+            <div class="principale <%= segno(t.imponibile - t.stima.costoTotale) %>">
+              <%= t.stima.ok ? euro(t.imponibile - t.stima.costoTotale) : '-' %>
+            </div>
+            <div class="secondario">prima della quota locale</div>
           </div>
         </div>
 
+        <% if (!t.stima.ok) { %>
+          <div class="avviso avviso--errore" role="alert">
+            <div>
+              <strong>Non approvabile.</strong> <%= t.stima.motivo %>
+            </div>
+          </div>
+        <% } else if (t.stima.incoerenze.length) { %>
+          <div class="avviso avviso--errore" role="alert">
+            <div>
+              <strong>Non approvabile.</strong> <%= t.stima.incoerenze[0].messaggio %>
+              Correggi le percentuali dalla pagina <a href="/admin/staff">Staff</a>.
+            </div>
+          </div>
+        <% } else { %>
+          <details class="dettagli">
+            <summary>Come verrebbe ripartito</summary>
+            <div class="tabella-contenitore">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Chi</th>
+                    <th scope="col" class="num">Percentuale</th>
+                    <th scope="col" class="num">Gli spetta</th>
+                    <th scope="col" class="num">Gli resta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%# Dall'amministrazione verso il basso: e' l'ordine in cui i
+                      soldi scendono lungo la catena. %>
+                  <% t.stima.voci.slice().reverse().forEach(function (q) { %>
+                    <tr>
+                      <td class="<%= rientro(t.stima.voci.length - 1 - q.livello) %>">
+                        <span class="principale"><%= q.nickname %></span>
+                        <% if (q.livello === 0) { %>
+                          <span class="secondario">venditore</span>
+                        <% } %>
+                      </td>
+                      <td class="num"><%= percentuale(q.percentuale) %></td>
+                      <td class="num"><%= euro(q.lordo) %></td>
+                      <td class="num principale"><%= euro(q.netto) %></td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row" colspan="3">Totale a carico dell'amministrazione</th>
+                    <td class="num principale"><%= euro(t.stima.costoTotale) %></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </details>
+        <% } %>
+
         <% if (t.omaggi) { %>
-          <div class="campo" style="margin-bottom:.75rem">
+          <div class="campo campo--staccato">
             <span class="campo__etichetta">Omaggi</span>
-            <div class="secondario"><%= t.omaggi %></div>
+            <div class="secondario"><%= t.omaggi %> <em>(non incide sulle provvigioni)</em></div>
           </div>
         <% } %>
 
         <% if (t.note_tavolo) { %>
-          <div class="campo" style="margin-bottom:.75rem">
+          <div class="campo campo--staccato">
             <span class="campo__etichetta">Note</span>
             <div class="secondario"><%= t.note_tavolo %></div>
           </div>
         <% } %>
 
-        <% if (t.modificata) { %>
+        <% if (t.modificata && t.note_modifiche) { %>
           <div class="avviso avviso--attenzione">
             Modificato da <%= t.modificato_da_nickname || 'un amministratore' %>:
             <%= t.note_modifiche %>
@@ -61,7 +159,11 @@
 
         <div class="azioni">
           <form method="post" action="/admin/approvazioni/<%= t.id %>/approva">
-            <button type="submit" class="pulsante pulsante--primario">Approva</button>
+            <%- include('../partials/csrf') %>
+            <button type="submit" class="pulsante pulsante--primario"
+                    <%= t.stima.ok && !t.stima.incoerenze.length ? '' : 'disabled' %>>
+              Approva
+            </button>
           </form>
 
           <a href="/admin/approvazioni/<%= t.id %>/modifica" class="pulsante">Correggi i dati</a>
@@ -71,14 +173,15 @@
         </div>
 
         <form method="post" action="/admin/approvazioni/<%= t.id %>/rifiuta"
-              id="rifiuta-<%= t.id %>" hidden style="margin-top:.9rem">
+              id="rifiuta-<%= t.id %>" hidden class="modulo modulo--staccato">
+          <%- include('../partials/csrf') %>
           <div class="campo">
             <label class="campo__etichetta" for="motivo-<%= t.id %>">Motivo del rifiuto</label>
             <input type="text" id="motivo-<%= t.id %>" name="motivo" maxlength="500"
                    placeholder="Es. data non disponibile" required>
             <span class="campo__aiuto">Il collaboratore potra' leggerlo nello storico.</span>
           </div>
-          <div class="azioni" style="margin-top:.6rem">
+          <div class="azioni">
             <button type="submit" class="pulsante pulsante--pericolo">Conferma rifiuto</button>
           </div>
         </form>

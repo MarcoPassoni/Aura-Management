@@ -1,0 +1,86 @@
+<div class="pannello">
+  <div class="pannello__testa">
+    <div>
+      <h2><%= tavolo.nome_tavolo %></h2>
+      <div class="secondario">
+        <%= dataIt(tavolo.data) %> &middot; <%= tavolo.pr_nickname %> &middot;
+        <%= numero(tavolo.numero_persone) %> persone
+      </div>
+    </div>
+    <span class="stato <%= classeStato(tavolo.stato) %>"><%= etichettaStato(tavolo.stato) %></span>
+  </div>
+
+  <div class="pannello__corpo">
+    <div class="griglia griglia--compatta">
+      <div>
+        <div class="scheda__etichetta">Imponibile</div>
+        <div class="principale"><%= euro(tavolo.imponibile) %></div>
+        <div class="secondario">
+          <% if (tavolo.baseCalcolo === 'consuntivo') { %>
+            incasso reale della serata
+          <% } else { %>
+            spesa prevista, incasso reale non ancora registrato
+          <% } %>
+        </div>
+      </div>
+      <% if (tavolo.baseCalcolo === 'consuntivo') { %>
+        <div>
+          <div class="scheda__etichetta">Preventivo iniziale</div>
+          <div class="principale num--superato"><%= euro(tavolo.spesa_prevista) %></div>
+        </div>
+      <% } %>
+    </div>
+
+    <% if (tavolo.note_tavolo) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Note</span>
+        <div class="secondario"><%= tavolo.note_tavolo %></div>
+      </div>
+    <% } %>
+    <% if (tavolo.modificata && tavolo.note_modifiche) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Modifiche</span>
+        <div class="secondario"><%= tavolo.note_modifiche %></div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="pannello">
+  <div class="pannello__testa">
+    <h2>La tua provvigione su questo tavolo</h2>
+    <span class="secondario">Percentuali fissate all'approvazione</span>
+  </div>
+  <div class="pannello__corpo pannello__corpo--stretto">
+    <% if (!quote.length) { %>
+      <div class="vuoto">Su questo tavolo non risulta alcuna provvigione a tuo favore.</div>
+    <% } else { %>
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Chi</th>
+              <th scope="col" class="num">Percentuale</th>
+              <th scope="col" class="num">Gli spetta</th>
+              <th scope="col" class="num">Gli resta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% quote.slice().reverse().forEach(function (q) { %>
+              <tr>
+                <td class="principale"><%= q.nickname %></td>
+                <td class="num"><span class="pastiglia"><%= percentuale(q.percentuale) %></span></td>
+                <td class="num"><%= euro(q.lordo) %></td>
+                <td class="num principale"><%= euro(q.netto) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="azioni">
+  <a href="/pr/tavoli" class="pulsante">Torna ai tavoli</a>
+</div>

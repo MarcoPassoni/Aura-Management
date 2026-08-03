@@ -32,7 +32,8 @@
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Incasso approvato</div>
-    <div class="scheda__valore"><%= euro(totaleApprovato) %></div>
+    <div class="scheda__valore"><%= euro(totaleImponibile) %></div>
+    <div class="scheda__nota">Base su cui si calcolano le provvigioni</div>
   </div>
 </div>
 
@@ -48,12 +49,13 @@
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tavolo</th>
-              <% if (!soloMiei) { %><th>Collaboratore</th><% } %>
-              <th class="num">Persone</th>
-              <th class="num">Importo</th>
-              <th>Stato</th>
+              <th scope="col">Data</th>
+              <th scope="col">Tavolo</th>
+              <% if (!soloMiei) { %><th scope="col">Collaboratore</th><% } %>
+              <th scope="col" class="num">Persone</th>
+              <th scope="col" class="num">Imponibile</th>
+              <th scope="col">Stato</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
@@ -62,7 +64,7 @@
                 <td><%= dataIt(t.data) %></td>
                 <td>
                   <div class="principale"><%= t.nome_tavolo %></div>
-                  <% if (t.modificata) { %>
+                  <% if (t.modificata && t.note_modifiche) { %>
                     <div class="secondario">
                       Modificato da <%= t.modificato_da_nickname || 'amministrazione' %>:
                       <%= t.note_modifiche %>
@@ -74,8 +76,18 @@
                 </td>
                 <% if (!soloMiei) { %><td><%= t.pr_nickname %></td><% } %>
                 <td class="num"><%= numero(t.numero_persone) %></td>
-                <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td class="num">
+                  <%= euro(t.imponibile) %>
+                  <%- include('../partials/base-calcolo', { tavolo: t }) %>
+                </td>
                 <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
+                <td>
+                  <% if (t.stato === 'approvato') { %>
+                    <a href="/pr/tavoli/<%= t.id %>/dettaglio" class="pulsante pulsante--piccolo">
+                      Provvigione
+                    </a>
+                  <% } %>
+                </td>
               </tr>
             <% }); %>
           </tbody>

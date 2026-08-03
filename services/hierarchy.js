@@ -74,13 +74,11 @@ class Hierarchy {
       }
     }
 
+    // I nodi non raggiungibili dalle radici fanno parte di un ciclo. Non si
+    // stampa nulla a video: la gerarchia viene caricata a ogni richiesta e il
+    // log si riempirebbe della stessa riga. L'elenco resta disponibile e la
+    // pagina Verifica lo mostra a chi puo' intervenire.
     this.orphanedByCycle = [...this.byId.values()].filter((n) => !visited.has(n.id));
-    if (this.orphanedByCycle.length) {
-      console.warn(
-        '[GERARCHIA] Ciclo rilevato: PR non raggiungibili dalle radici ->',
-        this.orphanedByCycle.map((n) => n.id).join(', ')
-      );
-    }
   }
 
   get(prId) {
@@ -137,6 +135,67 @@ class Hierarchy {
   isInAdminScope(adminId, prId) {
     const node = this.get(prId);
     return !!node && node.adminId === Number(adminId);
+  }
+
+  /**
+   * Verifica se un collaboratore puo' essere spostato sotto un nuovo
+   * responsabile, restituendo il motivo preciso quando non si puo'.
+   *
+   * Sono tre condizioni distinte e vanno distinte anche nel messaggio: chi
+   * sposta deve capire se ha sbagliato bersaglio, se creerebbe un anello, o se
+   * romperebbe il vincolo sulle percentuali.
+   */
+  puoSpostare(prId, nuovoPadre) {
+    const nodo = this.get(prId);
+    if (!nodo) return { ok: false, motivo: 'Collaboratore non trovato.' };
+
+    if (nuovoPadre.tipo === 'admin') {
+      if (!this.adminIds.has(Number(nuovoPadre.id))) {
+        return { ok: false, motivo: "L'amministrazione indicata non esiste." };
+      }
+      const figlioTroppoAlto = nodo.children.find(
+        (c) => c.percentuale_provvigione > nodo.percentuale_provvigione
+      );
+      if (figlioTroppoAlto) {
+        return {
+          ok: false,
+          motivo:
+            `${figlioTroppoAlto.nickname} ha il ${figlioTroppoAlto.percentuale_provvigione}%, ` +
+            `piu' di ${nodo.nickname} (${nodo.percentuale_provvigione}%): sistema prima le percentuali.`
+        };
+      }
+      return { ok: true };
+    }
+
+    const padre = this.get(nuovoPadre.id);
+    if (!padre) return { ok: false, motivo: 'Il responsabile indicato non esiste.' };
+    if (padre.id === nodo.id) {
+      return { ok: false, motivo: 'Un collaboratore non puo\' essere responsabile di se stesso.' };
+    }
+
+    // Spostare qualcuno sotto un proprio discendente chiuderebbe un anello:
+    // la catena non arriverebbe piu' all'amministrazione e nessun tavolo
+    // sarebbe piu' approvabile.
+    const discendenti = new Set(this.descendants(nodo.id).map((n) => n.id));
+    if (discendenti.has(padre.id)) {
+      return {
+        ok: false,
+        motivo:
+          `${padre.nickname} dipende da ${nodo.nickname}: assegnandolo come responsabile ` +
+          'si creerebbe un anello nella struttura.'
+      };
+    }
+
+    if (nodo.percentuale_provvigione > padre.percentuale_provvigione) {
+      return {
+        ok: false,
+        motivo:
+          `${nodo.nickname} ha il ${nodo.percentuale_provvigione}% e ${padre.nickname} solo il ` +
+          `${padre.percentuale_provvigione}%: il responsabile ci rimetterebbe su ogni tavolo.`
+      };
+    }
+
+    return { ok: true };
   }
 
   /**

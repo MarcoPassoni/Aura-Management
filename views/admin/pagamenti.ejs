@@ -2,82 +2,104 @@
   <div class="scheda">
     <div class="scheda__etichetta">Da versare</div>
     <div class="scheda__valore"><%= euro(totaleDovuto) %></div>
-    <div class="scheda__nota">Ai collaboratori di primo livello</div>
+    <div class="scheda__nota">Somma dei saldi ancora aperti verso di te</div>
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Gia' versato</div>
     <div class="scheda__valore"><%= euro(totaleVersato) %></div>
-    <div class="scheda__nota"><%= numero(storico.length) %> pagamenti registrati</div>
+    <div class="scheda__nota">
+      <%= numero(storico.length) %> <%= storico.length === 1 ? 'pagamento registrato' : 'pagamenti registrati' %>
+    </div>
   </div>
 </div>
 
+<% if (inEccesso.length) { %>
+  <div class="avviso avviso--errore" role="alert">
+    <div>
+      <strong>Hai versato piu' del dovuto a
+      <%= inEccesso.map(function (d) { return d.nickname; }).join(', ') %>.</strong>
+      Succede quando un tavolo viene riaperto o ridotto dopo il pagamento.
+      Annulla il versamento in eccesso qui sotto, oppure controlla il tavolo che e' cambiato.
+    </div>
+  </div>
+<% } %>
+
 <div class="avviso avviso--informativo">
-  Paghi solo i collaboratori di primo livello: sono loro a girare la quota ai propri
-  collaboratori. Cosi' la catena dei pagamenti rispecchia quella delle responsabilita'.
+  <div>
+    Paghi solo chi ha maturato provvigioni direttamente da te: di norma i collaboratori
+    di primo livello, che poi girano la loro quota a chi hanno sotto. Se qualcuno e' stato
+    spostato sotto un altro responsabile, resta in questo elenco finche' non hai chiuso
+    quello che aveva gia' maturato con te.
+  </div>
 </div>
 
 <div class="pannello">
   <div class="pannello__testa">
-    <h2>Situazione dei collaboratori diretti</h2>
+    <h2>Situazione dei collaboratori</h2>
   </div>
 
   <div class="pannello__corpo pannello__corpo--stretto">
     <% if (!daPagare.length) { %>
-      <div class="vuoto">Non hai collaboratori di primo livello.</div>
+      <div class="vuoto">Nessuno ha ancora maturato provvigioni a tuo carico.</div>
     <% } else { %>
       <div class="tabella-contenitore">
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">Maturato</th>
-              <th class="num">Ricevuto</th>
-              <th class="num">Da versare</th>
-              <th>Ultimo pagamento</th>
-              <th></th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">Gli spetta da te</th>
+              <th scope="col" class="num">Gia' versato</th>
+              <th scope="col" class="num">Da versare</th>
+              <th scope="col">Ultimo pagamento</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
             <% daPagare.forEach(function (p) { %>
-              <tr>
+              <tr<%= p.rapporto.saldo < 0 ? ' class="riga--allarme"' : '' %>>
                 <td>
                   <div class="principale"><%= p.nickname %></div>
-                  <div class="secondario"><%= percentuale(p.percentuale) %> su <%= euro(p.fatturatoSottoalbero) %></div>
+                  <div class="secondario">
+                    <%= percentuale(p.percentuale) %> su <%= euro(p.fatturatoSottoalbero) %> di struttura
+                    <% if (p.fuoriStruttura) { %> &middot; non piu' nella tua struttura<% } %>
+                    <% if (!p.attivo) { %> &middot; disattivato<% } %>
+                  </div>
                 </td>
-                <td class="num"><%= euro(p.maturatoLordo) %></td>
-                <td class="num"><%= euro(p.ricevuto) %></td>
-                <td class="num principale <%= segno(p.saldoDaRicevere) %>"><%= euro(p.saldoDaRicevere) %></td>
+                <td class="num"><%= euro(p.rapporto.maturato) %></td>
+                <td class="num"><%= euro(p.rapporto.ricevuto) %></td>
+                <td class="num principale <%= segno(p.rapporto.saldo) %>"><%= euro(p.rapporto.saldo) %></td>
                 <td class="secondario"><%= p.ultimoPagamento ? dataOraIt(p.ultimoPagamento) : 'mai' %></td>
                 <td>
-                  <% if (p.saldoDaRicevere > 0.01) { %>
+                  <% if (p.rapporto.saldo > 0) { %>
                     <button type="button" class="pulsante pulsante--piccolo pulsante--primario"
                             data-apre="paga-<%= p.id %>" aria-expanded="false">Registra</button>
+                  <% } else if (p.rapporto.saldo < 0) { %>
+                    <span class="stato stato--rifiutato">In eccesso</span>
                   <% } else { %>
                     <span class="stato stato--approvato">Saldato</span>
                   <% } %>
                 </td>
               </tr>
 
-              <% if (p.saldoDaRicevere > 0.01) { %>
+              <% if (p.rapporto.saldo > 0) { %>
                 <tr id="paga-<%= p.id %>" hidden>
-                  <td colspan="6" style="background:var(--superficie-alt)">
-                    <form method="post" action="/admin/pagamenti/registra" class="modulo">
+                  <td colspan="6" class="cella-espansa">
+                    <form method="post" action="/admin/pagamenti/registra" class="filtri">
+                      <%- include('../partials/csrf') %>
                       <input type="hidden" name="destinatario_id" value="<%= p.id %>">
-                      <div class="filtri">
-                        <div class="campo">
-                          <label class="campo__etichetta" for="imp-<%= p.id %>">Importo</label>
-                          <input type="number" id="imp-<%= p.id %>" name="importo" required
-                                 min="0.01" max="<%= p.saldoDaRicevere %>" step="0.01"
-                                 value="<%= p.saldoDaRicevere %>">
-                          <span class="campo__aiuto">Massimo <%= euro(p.saldoDaRicevere) %></span>
-                        </div>
-                        <div class="campo" style="flex:2">
-                          <label class="campo__etichetta" for="note-<%= p.id %>">Note</label>
-                          <input type="text" id="note-<%= p.id %>" name="note" maxlength="500"
-                                 placeholder="Facoltative">
-                        </div>
-                        <button type="submit" class="pulsante pulsante--primario">Registra pagamento</button>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="imp-<%= p.id %>">Importo</label>
+                        <input type="number" id="imp-<%= p.id %>" name="importo" required
+                               min="0.01" max="<%= p.rapporto.saldo %>" step="0.01"
+                               inputmode="decimal" value="<%= p.rapporto.saldo %>">
+                        <span class="campo__aiuto">Massimo <%= euro(p.rapporto.saldo) %></span>
                       </div>
+                      <div class="campo" style="flex:2">
+                        <label class="campo__etichetta" for="note-<%= p.id %>">Note</label>
+                        <input type="text" id="note-<%= p.id %>" name="note" maxlength="500"
+                               placeholder="Facoltative: contanti, bonifico, acconto...">
+                      </div>
+                      <button type="submit" class="pulsante pulsante--primario">Registra pagamento</button>
                     </form>
                   </td>
                 </tr>
@@ -102,11 +124,11 @@
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Destinatario</th>
-              <th class="num">Importo</th>
-              <th>Note</th>
-              <th></th>
+              <th scope="col">Data</th>
+              <th scope="col">Destinatario</th>
+              <th scope="col" class="num">Importo</th>
+              <th scope="col">Note</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
@@ -118,7 +140,8 @@
                 <td class="secondario"><%= p.note || '-' %></td>
                 <td>
                   <form method="post" action="/admin/pagamenti/<%= p.id %>/annulla"
-                        data-conferma="Annullare questo pagamento di <%= euro(p.importo) %>? Il saldo tornera' scoperto.">
+                        data-conferma="Annullare questo pagamento di <%= euro(p.importo) %> a <%= p.destinatario_nickname %>? Il saldo tornera' scoperto.">
+                    <%- include('../partials/csrf') %>
                     <button type="submit" class="pulsante pulsante--piccolo pulsante--pericolo">Annulla</button>
                   </form>
                 </td>

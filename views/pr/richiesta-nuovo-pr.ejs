@@ -11,6 +11,7 @@
 
   <div class="pannello__corpo">
     <form method="post" action="/pr/richiesta-nuovo-pr" class="modulo" autocomplete="off">
+      <%- include('../partials/csrf') %>
       <div class="modulo modulo--due">
         <div class="campo">
           <label class="campo__etichetta" for="nome">Nome</label>
@@ -89,8 +90,14 @@
               <tr>
                 <td><%= dataOraIt(r.data_richiesta) %></td>
                 <td>
-                  <div class="principale"><%= r.nome %> <%= r.cognome %></div>
-                  <div class="secondario"><%= r.nickname %></div>
+                  <div class="principale"><%= r.nickname %></div>
+                  <% if (r.stato === 'in_attesa') { %>
+                    <div class="secondario"><%= r.nome %> <%= r.cognome %></div>
+                  <% } else { %>
+                    <%# Dopo la decisione i dati personali della proposta vengono
+                        rimossi: restano solo nel profilo, dove sono cifrati. %>
+                    <div class="secondario">dati trasferiti nel profilo</div>
+                  <% } %>
                 </td>
                 <td class="num"><%= percentuale(r.percentuale_provvigione) %></td>
                 <td>

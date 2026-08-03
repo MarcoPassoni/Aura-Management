@@ -7,9 +7,11 @@
     "start": "node --no-warnings server.js",
     "dev": "nodemon --no-warnings server.js",
     "postinstall": "npm rebuild sqlite3",
-    "test": "node test/commissions.test.js && node test/flusso.test.js",
+    "test": "node scripts/verifica-viste.js && node test/commissions.test.js && node test/flusso.test.js && node test/integrita.test.js",
+    "test:viste": "node scripts/verifica-viste.js",
     "test:calc": "node test/commissions.test.js",
     "test:flusso": "node test/flusso.test.js",
+    "test:integrita": "node test/integrita.test.js",
     "migrate": "node scripts/migrate.js",
     "crea-admin": "node scripts/crea-admin.js",
     "railway-init": "node setup-volume.js && node railway-init.js"

@@ -1,8 +1,10 @@
 <div class="griglia">
   <div class="scheda">
-    <div class="scheda__etichetta">Maturato</div>
-    <div class="scheda__valore"><%= euro(mia.maturatoLordo) %></div>
-    <div class="scheda__nota"><%= percentuale(mia.percentuale) %> su <%= euro(mia.fatturatoSottoalbero) %></div>
+    <div class="scheda__etichetta">Mi spetta in tutto</div>
+    <div class="scheda__valore"><%= euro(mia.maturato) %></div>
+    <div class="scheda__nota">
+      Su <%= euro(mia.fatturatoSottoalbero) %> di incasso della mia struttura
+    </div>
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Ricevuto</div>
@@ -10,25 +12,64 @@
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Da ricevere</div>
-    <div class="scheda__valore <%= segno(mia.saldoDaRicevere) %>"><%= euro(mia.saldoDaRicevere) %></div>
-    <div class="scheda__nota">Da <%= mia.pagante.nome %></div>
+    <div class="scheda__valore <%= segno(mia.saldo) %>"><%= euro(mia.saldo) %></div>
+    <div class="scheda__nota">
+      <%= mia.debitori.length === 1 ? 'Da ' + mia.debitori[0].nome : 'Dettaglio qui sotto' %>
+    </div>
   </div>
-  <% if (figli.length) { %>
+  <% if (daPagare.length) { %>
     <div class="scheda">
       <div class="scheda__etichetta">Devo versare</div>
-      <div class="scheda__valore"><%= euro(dovutoAiFigli) %></div>
+      <div class="scheda__valore"><%= euro(dovutoAiCollaboratori) %></div>
       <div class="scheda__nota">Ai miei collaboratori</div>
     </div>
   <% } %>
 </div>
 
 <div class="avviso avviso--informativo">
-  Ricevi la tua percentuale sull'incasso di tutta la tua struttura e ne giri una parte
-  ai collaboratori. Quello che resta e' il tuo guadagno effettivo:
-  <strong><%= euro(mia.guadagnoNetto) %></strong>.
+  <div>
+    Ricevi la tua percentuale sull'incasso di tutta la tua struttura e ne giri una parte
+    ai collaboratori. Quello che ti resta e'
+    <strong><%= euro(mia.trattenuto) %></strong>.
+    Le percentuali sono quelle fissate quando ogni tavolo e' stato approvato: se cambiano
+    in seguito, i tavoli gia' approvati non si modificano.
+  </div>
 </div>
 
-<% if (figli.length) { %>
+<% if (mia.debitori.length > 1) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Chi mi deve pagare</h2>
+      <span class="secondario">Il compenso resta a carico di chi era il tuo responsabile quando l'hai maturato</span>
+    </div>
+    <div class="pannello__corpo pannello__corpo--stretto">
+      <div class="tabella-contenitore">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Chi</th>
+              <th scope="col" class="num">Mi spetta</th>
+              <th scope="col" class="num">Ricevuto</th>
+              <th scope="col" class="num">Da ricevere</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% mia.debitori.forEach(function (d) { %>
+              <tr>
+                <td class="principale"><%= d.nome %></td>
+                <td class="num"><%= euro(d.maturato) %></td>
+                <td class="num"><%= euro(d.ricevuto) %></td>
+                <td class="num principale <%= segno(d.saldo) %>"><%= euro(d.saldo) %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<% if (daPagare.length) { %>
   <div class="pannello">
     <div class="pannello__testa">
       <h2>Da versare ai collaboratori</h2>
@@ -38,51 +79,58 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">%</th>
-              <th class="num">Maturato</th>
-              <th class="num">Ricevuto</th>
-              <th class="num">Da versare</th>
-              <th></th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">%</th>
+              <th scope="col" class="num">Gli spetta da me</th>
+              <th scope="col" class="num">Gia' versato</th>
+              <th scope="col" class="num">Da versare</th>
+              <th scope="col">Ultimo</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
-            <% figli.forEach(function (f) { %>
-              <tr>
-                <td class="principale"><%= f.nickname %></td>
-                <td class="num"><%= percentuale(f.percentuale) %></td>
-                <td class="num"><%= euro(f.maturatoLordo) %></td>
-                <td class="num"><%= euro(f.ricevuto) %></td>
-                <td class="num principale <%= segno(f.saldoDaRicevere) %>"><%= euro(f.saldoDaRicevere) %></td>
+            <% daPagare.forEach(function (f) { %>
+              <tr<%= f.rapporto.saldo < 0 ? ' class="riga--allarme"' : '' %>>
                 <td>
-                  <% if (f.saldoDaRicevere > 0.01) { %>
+                  <div class="principale"><%= f.nickname %></div>
+                  <% if (!f.attivo) { %><div class="secondario">disattivato</div><% } %>
+                </td>
+                <td class="num"><%= percentuale(f.percentuale) %></td>
+                <td class="num"><%= euro(f.rapporto.maturato) %></td>
+                <td class="num"><%= euro(f.rapporto.ricevuto) %></td>
+                <td class="num principale <%= segno(f.rapporto.saldo) %>"><%= euro(f.rapporto.saldo) %></td>
+                <td class="secondario"><%= f.ultimoPagamento ? dataOraIt(f.ultimoPagamento) : 'mai' %></td>
+                <td>
+                  <% if (f.rapporto.saldo > 0) { %>
                     <button type="button" class="pulsante pulsante--piccolo pulsante--primario"
                             data-apre="paga-<%= f.id %>" aria-expanded="false">Paga</button>
+                  <% } else if (f.rapporto.saldo < 0) { %>
+                    <span class="stato stato--rifiutato">In eccesso</span>
                   <% } else { %>
                     <span class="stato stato--approvato">Saldato</span>
                   <% } %>
                 </td>
               </tr>
 
-              <% if (f.saldoDaRicevere > 0.01) { %>
+              <% if (f.rapporto.saldo > 0) { %>
                 <tr id="paga-<%= f.id %>" hidden>
-                  <td colspan="6" style="background:var(--superficie-alt)">
-                    <form method="post" action="/pr/provvigioni/paga" class="modulo">
+                  <td colspan="7" class="cella-espansa">
+                    <form method="post" action="/pr/provvigioni/paga" class="filtri">
+                      <%- include('../partials/csrf') %>
                       <input type="hidden" name="destinatario_id" value="<%= f.id %>">
-                      <div class="filtri">
-                        <div class="campo">
-                          <label class="campo__etichetta" for="imp-<%= f.id %>">Importo</label>
-                          <input type="number" id="imp-<%= f.id %>" name="importo" required
-                                 min="0.01" max="<%= f.saldoDaRicevere %>" step="0.01"
-                                 value="<%= f.saldoDaRicevere %>">
-                          <span class="campo__aiuto">Massimo <%= euro(f.saldoDaRicevere) %></span>
-                        </div>
-                        <div class="campo" style="flex:2">
-                          <label class="campo__etichetta" for="note-<%= f.id %>">Note</label>
-                          <input type="text" id="note-<%= f.id %>" name="note" maxlength="500">
-                        </div>
-                        <button type="submit" class="pulsante pulsante--primario">Registra</button>
+                      <div class="campo">
+                        <label class="campo__etichetta" for="imp-<%= f.id %>">Importo</label>
+                        <input type="number" id="imp-<%= f.id %>" name="importo" required
+                               min="0.01" max="<%= f.rapporto.saldo %>" step="0.01"
+                               inputmode="decimal" value="<%= f.rapporto.saldo %>">
+                        <span class="campo__aiuto">Massimo <%= euro(f.rapporto.saldo) %></span>
                       </div>
+                      <div class="campo" style="flex:2">
+                        <label class="campo__etichetta" for="note-<%= f.id %>">Note</label>
+                        <input type="text" id="note-<%= f.id %>" name="note" maxlength="500"
+                               placeholder="Facoltative">
+                      </div>
+                      <button type="submit" class="pulsante pulsante--primario">Registra</button>
                     </form>
                   </td>
                 </tr>
@@ -106,7 +154,12 @@
       <div class="tabella-contenitore">
         <table>
           <thead>
-            <tr><th>Data</th><th>Da</th><th class="num">Importo</th><th>Note</th></tr>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">Da</th>
+              <th scope="col" class="num">Importo</th>
+              <th scope="col">Note</th>
+            </tr>
           </thead>
           <tbody>
             <% ricevuti.forEach(function (p) { %>
@@ -133,7 +186,13 @@
       <div class="tabella-contenitore">
         <table>
           <thead>
-            <tr><th>Data</th><th>A</th><th class="num">Importo</th><th>Note</th><th></th></tr>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">A</th>
+              <th scope="col" class="num">Importo</th>
+              <th scope="col">Note</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
+            </tr>
           </thead>
           <tbody>
             <% versati.forEach(function (p) { %>
@@ -144,7 +203,8 @@
                 <td class="secondario"><%= p.note || '-' %></td>
                 <td>
                   <form method="post" action="/pr/provvigioni/<%= p.id %>/annulla"
-                        data-conferma="Annullare questo pagamento di <%= euro(p.importo) %>?">
+                        data-conferma="Annullare questo pagamento di <%= euro(p.importo) %> a <%= p.destinatario_nickname %>?">
+                    <%- include('../partials/csrf') %>
                     <button type="submit" class="pulsante pulsante--piccolo pulsante--pericolo">Annulla</button>
                   </form>
                 </td>

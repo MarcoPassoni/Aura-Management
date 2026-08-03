@@ -27,6 +27,7 @@
           <span class="secondario"><%= utente.nickname %></span>
         </div>
         <form method="post" action="/logout">
+          <%- include('partials/csrf') %>
           <button type="submit" class="pulsante pulsante--piccolo pulsante--largo">Esci</button>
         </form>
       </div>

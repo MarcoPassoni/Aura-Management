@@ -1,0 +1,171 @@
+<div class="pannello">
+  <div class="pannello__testa">
+    <div>
+      <h2><%= tavolo.nome_tavolo %></h2>
+      <div class="secondario">
+        <%= dataIt(tavolo.data) %> &middot; <%= tavolo.pr_nickname %> &middot;
+        <%= numero(tavolo.numero_persone) %> persone
+      </div>
+    </div>
+    <span class="stato <%= classeStato(tavolo.stato) %>"><%= etichettaStato(tavolo.stato) %></span>
+  </div>
+
+  <div class="pannello__corpo">
+    <div class="griglia griglia--compatta">
+      <div>
+        <div class="scheda__etichetta">Spesa prevista</div>
+        <div class="principale <%= tavolo.baseCalcolo === 'consuntivo' ? 'num--superato' : '' %>">
+          <%= euro(tavolo.spesa_prevista) %>
+        </div>
+      </div>
+      <div>
+        <div class="scheda__etichetta">Incasso reale</div>
+        <div class="principale">
+          <%= tavolo.incasso_effettivo === null ? 'non registrato' : euro(tavolo.incasso_effettivo) %>
+        </div>
+      </div>
+      <div>
+        <div class="scheda__etichetta">Imponibile usato</div>
+        <div class="principale"><%= euro(tavolo.imponibile) %></div>
+        <div class="secondario">
+          <%= tavolo.baseCalcolo === 'consuntivo' ? 'incasso reale' : 'spesa prevista' %>
+        </div>
+      </div>
+      <div>
+        <div class="scheda__etichetta">Costo provvigioni</div>
+        <div class="principale"><%= euro(tavolo.costoProvvigioni) %></div>
+      </div>
+    </div>
+
+    <% if (tavolo.omaggi) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Omaggi</span>
+        <div class="secondario"><%= tavolo.omaggi %> <em>(descrittivo, non incide sul calcolo)</em></div>
+      </div>
+    <% } %>
+    <% if (tavolo.note_tavolo) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Note</span>
+        <div class="secondario"><%= tavolo.note_tavolo %></div>
+      </div>
+    <% } %>
+    <% if (tavolo.modificata && tavolo.note_modifiche) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Storico delle modifiche</span>
+        <div class="secondario">
+          <%= tavolo.note_modifiche %>
+          <% if (tavolo.modificato_da_nickname) { %> &middot; <%= tavolo.modificato_da_nickname %><% } %>
+        </div>
+      </div>
+    <% } %>
+    <% if (tavolo.deciso_il) { %>
+      <div class="campo campo--staccato">
+        <span class="campo__etichetta">Decisione</span>
+        <div class="secondario">
+          <%= etichettaStato(tavolo.stato) %> il <%= dataOraIt(tavolo.deciso_il) %>
+          da <%= tavolo.deciso_da_nickname || 'un amministratore' %>
+          <% if (tavolo.motivo_rifiuto) { %> &middot; motivo: <%= tavolo.motivo_rifiuto %><% } %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (tavolo.stato === 'approvato') { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Ripartizione congelata</h2>
+      <span class="secondario">Percentuali fissate al momento dell'approvazione</span>
+    </div>
+
+    <div class="pannello__corpo pannello__corpo--stretto">
+      <% if (!quote.length) { %>
+        <div class="vuoto">
+          Questo tavolo e' approvato ma non ha una ripartizione: non entra in nessun calcolo.
+          <div><a href="/admin/verifica">Vedi come sistemarlo</a></div>
+        </div>
+      <% } else { %>
+        <div class="tabella-contenitore">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Chi</th>
+                <th scope="col" class="num">Percentuale</th>
+                <th scope="col" class="num">Gli spetta</th>
+                <th scope="col" class="num">Gira sotto</th>
+                <th scope="col" class="num">Gli resta</th>
+                <th scope="col">Glielo deve</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% quote.slice().reverse().forEach(function (q) { %>
+                <tr>
+                  <td class="<%= rientro(quote.length - 1 - q.livello) %>">
+                    <span class="principale"><%= q.nickname %></span>
+                    <% if (q.livello === 0) { %><div class="secondario">venditore</div><% } %>
+                  </td>
+                  <td class="num"><span class="pastiglia"><%= percentuale(q.percentuale) %></span></td>
+                  <td class="num"><%= euro(q.lordo) %></td>
+                  <td class="num"><%= q.girato ? euro(q.girato) : '-' %></td>
+                  <td class="num principale <%= segno(q.netto) %>"><%= euro(q.netto) %></td>
+                  <td class="secondario">
+                    <%= q.debitore_tipo === 'admin' ? 'Amministrazione' : 'il suo responsabile' %>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row" colspan="4">Totale a carico dell'amministrazione</th>
+                <td class="num principale"><%= euro(tavolo.costoProvvigioni) %></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } else if (previste) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Come verrebbe ripartito</h2>
+      <span class="secondario">Stima con le percentuali di oggi</span>
+    </div>
+    <div class="pannello__corpo pannello__corpo--stretto">
+      <% if (!previste.ok) { %>
+        <div class="vuoto"><%= previste.motivo %></div>
+      <% } else { %>
+        <div class="tabella-contenitore">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Chi</th>
+                <th scope="col" class="num">Percentuale</th>
+                <th scope="col" class="num">Gli spetta</th>
+                <th scope="col" class="num">Gli resta</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% previste.voci.slice().reverse().forEach(function (q) { %>
+                <tr>
+                  <td class="<%= rientro(previste.voci.length - 1 - q.livello) %>">
+                    <span class="principale"><%= q.nickname %></span>
+                  </td>
+                  <td class="num"><%= percentuale(q.percentuale) %></td>
+                  <td class="num"><%= euro(q.lordo) %></td>
+                  <td class="num principale"><%= euro(q.netto) %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+
+<div class="azioni">
+  <a href="/admin/tavoli" class="pulsante">Torna ai tavoli</a>
+  <a href="/admin/approvazioni/<%= tavolo.id %>/modifica" class="pulsante">Correggi i dati</a>
+</div>

@@ -1,0 +1,73 @@
+<% if (tuttoOk) { %>
+  <div class="avviso avviso--ok" role="status">
+    <div>
+      <strong>I conti tornano.</strong>
+      Tutti i tavoli approvati rientrano nei calcoli, la struttura non contiene anelli,
+      nessuno risulta pagato piu' del dovuto.
+      <% if (conVoci.length) { %>
+        Restano solo le note informative qui sotto.
+      <% } %>
+    </div>
+  </div>
+<% } else { %>
+  <div class="griglia">
+    <div class="scheda">
+      <div class="scheda__etichetta">Da risolvere</div>
+      <div class="scheda__valore <%= bloccanti ? 'num--negativo' : '' %>"><%= numero(bloccanti) %></div>
+      <div class="scheda__nota">Impediscono di avere conti corretti</div>
+    </div>
+    <div class="scheda">
+      <div class="scheda__etichetta">Da tenere d'occhio</div>
+      <div class="scheda__valore"><%= numero(attenzioni) %></div>
+      <div class="scheda__nota">I conti tornano, la configurazione no</div>
+    </div>
+  </div>
+<% } %>
+
+<div class="avviso avviso--informativo">
+  <div>
+    Questa pagina rilegge i dati e cerca le situazioni in cui un numero mostrato altrove
+    potrebbe essere incompleto o non spiegabile. Non modifica niente: ogni voce dice
+    cosa non va e come sistemarlo.
+  </div>
+</div>
+
+<% controlli.forEach(function (c) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <div>
+        <h2><%= c.titolo %></h2>
+        <div class="secondario"><%= c.spiegazione %></div>
+      </div>
+      <% if (!c.voci.length) { %>
+        <span class="stato stato--approvato">A posto</span>
+      <% } else if (c.gravita === 'bloccante') { %>
+        <span class="stato stato--rifiutato"><%= numero(c.voci.length) %> da risolvere</span>
+      <% } else if (c.gravita === 'attenzione') { %>
+        <span class="stato stato--attesa"><%= numero(c.voci.length) %> da valutare</span>
+      <% } else { %>
+        <span class="stato stato--neutro"><%= numero(c.voci.length) %></span>
+      <% } %>
+    </div>
+
+    <% if (c.voci.length) { %>
+      <div class="pannello__corpo pannello__corpo--stretto">
+        <div class="tabella-contenitore">
+          <table>
+            <tbody>
+              <% c.voci.forEach(function (voce) { %>
+                <tr>
+                  <td><%= voce.testo %></td>
+                  <td class="num secondario"><%= voce.dettaglio %></td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="pannello__corpo">
+        <p class="nota-finale"><strong>Come si risolve.</strong> <%= c.rimedio %></p>
+      </div>
+    <% } %>
+  </div>
+<% }); %>

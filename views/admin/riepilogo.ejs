@@ -1,8 +1,17 @@
-<% if (avvisi && avvisi.length) { %>
-  <% avvisi.forEach(function (a) { %>
-    <div class="avviso avviso--attenzione" role="alert"><%= a %></div>
-  <% }); %>
+<% if (tavoliEsclusi > 0) { %>
+  <div class="avviso avviso--errore" role="alert">
+    <div>
+      <strong><%= numero(tavoliEsclusi) %></strong>
+      <%= tavoliEsclusi === 1 ? 'tavolo approvato non rientra' : 'tavoli approvati non rientrano' %>
+      in nessun calcolo: i numeri di questa pagina sono incompleti.
+      <a href="/admin/verifica">Vedi cosa non va</a>.
+    </div>
+  </div>
 <% } %>
+
+<% (avvisi || []).forEach(function (a) { %>
+  <div class="avviso avviso--attenzione" role="alert"><%= a %></div>
+<% }); %>
 
 <div class="griglia">
   <div class="scheda">
@@ -12,9 +21,9 @@
   </div>
 
   <div class="scheda">
-    <div class="scheda__etichetta">Provvigioni da riconoscere</div>
+    <div class="scheda__etichetta">Provvigioni maturate</div>
     <div class="scheda__valore"><%= euro(totali.costoProvvigioni) %></div>
-    <div class="scheda__nota">A <%= numero(totali.numeroPr) %> collaboratori</div>
+    <div class="scheda__nota">Costo complessivo della rete</div>
   </div>
 
   <div class="scheda">
@@ -35,11 +44,11 @@
     <div class="pannello__corpo">
       <div class="riga-tra">
         <div>
-          <h2>Richieste da valutare</h2>
+          <h2>Da valutare</h2>
           <div class="secondario">
-            <% if (inAttesa > 0) { %><%= numero(inAttesa) %> tavoli in attesa<% } %>
+            <% if (inAttesa > 0) { %><%= numero(inAttesa) %> <%= inAttesa === 1 ? 'tavolo in attesa' : 'tavoli in attesa' %><% } %>
             <% if (inAttesa > 0 && richiestePrAperte > 0) { %> &middot; <% } %>
-            <% if (richiestePrAperte > 0) { %><%= numero(richiestePrAperte) %> proposte di nuovi collaboratori<% } %>
+            <% if (richiestePrAperte > 0) { %><%= numero(richiestePrAperte) %> <%= richiestePrAperte === 1 ? 'proposta di nuovo collaboratore' : 'proposte di nuovi collaboratori' %><% } %>
           </div>
         </div>
         <div class="azioni">
@@ -58,10 +67,11 @@
 <div class="pannello">
   <div class="pannello__testa">
     <h2>Andamento degli ultimi mesi</h2>
+    <span class="secondario">Incasso dei tavoli approvati</span>
   </div>
   <div class="pannello__corpo">
     <% if (!andamento.length) { %>
-      <div class="vuoto">Nessun tavolo approvato nel periodo.</div>
+      <div class="vuoto">Nessun tavolo approvato negli ultimi sei mesi.</div>
     <% } else {
          const massimo = Math.max.apply(null, andamento.map(function (m) { return m.fatturato; })) || 1; %>
       <div class="grafico">
@@ -70,7 +80,7 @@
             <div class="grafico__valore"><%= numero(Math.round(m.fatturato)) %></div>
             <div class="grafico__barra"
                  style="height: <%= Math.max(2, Math.round((m.fatturato / massimo) * 90)) %>px"
-                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.fatturato) %>"></div>
+                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.fatturato) %> su <%= numero(m.tavoli) %> tavoli"></div>
             <div class="grafico__etichetta"><%= meseIt(m.mese) %></div>
           </div>
         <% }); %>
@@ -92,10 +102,10 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">Percentuale</th>
-              <th class="num">Fatturato struttura</th>
-              <th class="num">Guadagno netto</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">Percentuale</th>
+              <th scope="col" class="num">Incasso struttura</th>
+              <th scope="col" class="num">Trattiene</th>
             </tr>
           </thead>
           <tbody>
@@ -104,7 +114,7 @@
                 <td class="principale"><%= p.nickname %></td>
                 <td class="num"><span class="pastiglia"><%= percentuale(p.percentuale) %></span></td>
                 <td class="num"><%= euro(p.fatturatoSottoalbero) %></td>
-                <td class="num <%= segno(p.guadagnoNetto) %>"><%= euro(p.guadagnoNetto) %></td>
+                <td class="num <%= segno(p.trattenuto) %>"><%= euro(p.trattenuto) %></td>
               </tr>
             <% }); %>
           </tbody>
@@ -127,12 +137,12 @@
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tavolo</th>
-              <th>Collaboratore</th>
-              <th class="num">Persone</th>
-              <th class="num">Importo</th>
-              <th>Stato</th>
+              <th scope="col">Data</th>
+              <th scope="col">Tavolo</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">Persone</th>
+              <th scope="col" class="num">Imponibile</th>
+              <th scope="col">Stato</th>
             </tr>
           </thead>
           <tbody>
@@ -142,7 +152,10 @@
                 <td class="principale"><%= t.nome_tavolo %></td>
                 <td><%= t.pr_nickname %></td>
                 <td class="num"><%= numero(t.numero_persone) %></td>
-                <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td class="num">
+                  <%= euro(t.imponibile) %>
+                  <%- include('../partials/base-calcolo', { tavolo: t }) %>
+                </td>
                 <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
               </tr>
             <% }); %>

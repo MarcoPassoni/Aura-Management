@@ -33,7 +33,10 @@
         <tbody>
           <tr>
             <td class="principale">Incasso dei tavoli</td>
-            <td class="secondario">Somma di tutti i tavoli approvati</td>
+            <td class="secondario">
+              <%= numero(totali.tavoli) %> tavoli approvati, contati una volta ciascuno.
+              Per i tavoli con incasso reale registrato si usa quello, per gli altri il preventivo.
+            </td>
             <td class="num principale"><%= euro(totali.incassoTotale) %></td>
           </tr>
           <tr>
@@ -92,33 +95,41 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">%</th>
-              <th class="num">Incasso proprio</th>
-              <th class="num">Tavoli</th>
-              <th class="num">Persone</th>
-              <th class="num">Costa</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">%</th>
+              <th scope="col" class="num">Incasso proprio</th>
+              <th scope="col" class="num">Tavoli</th>
+              <th scope="col" class="num">Persone</th>
+              <th scope="col" class="num">Costa</th>
             </tr>
           </thead>
           <tbody>
             <% elenco.forEach(function (p) { %>
-              <tr>
+              <tr<%= p.fuoriStruttura ? ' class="riga--attenuata"' : '' %>>
                 <td class="<%= rientro(p.livello) %>"><span class="principale"><%= p.nickname %></span></td>
                 <td class="num"><%= percentuale(p.percentuale) %></td>
                 <td class="num"><%= euro(p.fatturatoDiretto) %></td>
                 <td class="num"><%= numero(p.tavoliDiretti) %></td>
                 <td class="num"><%= numero(p.personeDirette) %></td>
-                <td class="num"><%= euro(p.guadagnoNetto) %></td>
+                <td class="num <%= segno(p.trattenuto) %>"><%= euro(p.trattenuto) %></td>
               </tr>
             <% }); %>
           </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row" colspan="5">Totale</th>
+              <td class="num principale">
+                <%= euro(elenco.reduce(function (s, p) { return s + p.trattenuto; }, 0)) %>
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       <div class="pannello__corpo">
-        <p class="secondario" style="margin:0">
-          La colonna <em>costa</em> e' il guadagno netto del collaboratore, cioe' la parte
-          di provvigione che trattiene per se'. La somma della colonna coincide con le
-          provvigioni totali a carico dell'amministrazione.
+        <p class="secondario nota-finale">
+          La colonna <em>costa</em> e' quello che il collaboratore trattiene per se', dopo
+          aver girato la sua parte a chi dipende da lui. Il totale coincide con le
+          provvigioni a carico dell'amministrazione riportate nel conto economico qui sopra.
         </p>
       </div>
     <% } %>

@@ -5,6 +5,7 @@
 
   <div class="pannello__corpo">
     <form method="post" action="/pr/prenotazioni" class="modulo">
+      <%- include('../partials/csrf') %>
       <div class="modulo modulo--due">
         <div class="campo">
           <label class="campo__etichetta" for="data">Data della serata</label>
@@ -31,14 +32,17 @@
         <div class="campo">
           <label class="campo__etichetta" for="numero_persone">Numero di persone</label>
           <input type="number" id="numero_persone" name="numero_persone"
-                 min="1" max="500" value="2" required>
+                 min="1" max="500" value="2" required inputmode="numeric">
         </div>
 
         <div class="campo">
           <label class="campo__etichetta" for="spesa_prevista">Spesa prevista</label>
           <input type="number" id="spesa_prevista" name="spesa_prevista"
-                 min="0" max="1000000" step="0.01" value="0" required>
-          <span class="campo__aiuto">Su questo importo si calcola la tua provvigione.</span>
+                 min="0" max="1000000" step="0.01" value="0" required inputmode="decimal">
+          <span class="campo__aiuto">
+            Su questo importo si calcola la provvigione, finche' l'amministrazione non
+            registra l'incasso reale della serata: da quel momento vale quello.
+          </span>
         </div>
       </div>
 
@@ -64,7 +68,9 @@
 <div class="pannello">
   <div class="pannello__testa">
     <h2>In attesa di approvazione</h2>
-    <span class="secondario"><%= numero(elenco.length) %> richieste</span>
+    <span class="secondario">
+      <%= numero(elenco.length) %> <%= elenco.length === 1 ? 'richiesta' : 'richieste' %>
+    </span>
   </div>
 
   <div class="pannello__corpo pannello__corpo--stretto">

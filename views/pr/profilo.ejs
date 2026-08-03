@@ -6,11 +6,11 @@
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Il mio responsabile</div>
-    <div class="scheda__valore" style="font-size:1.1rem"><%= responsabile %></div>
+    <div class="scheda__valore scheda__valore--testo"><%= responsabile %></div>
   </div>
   <div class="scheda">
     <div class="scheda__etichetta">Delega</div>
-    <div class="scheda__valore" style="font-size:1.1rem">
+    <div class="scheda__valore scheda__valore--testo">
       <%= pr.poteri ? 'Posso proporre collaboratori' : 'Non attiva' %>
     </div>
   </div>
@@ -23,6 +23,7 @@
 
   <div class="pannello__corpo">
     <form method="post" action="/pr/profilo" class="modulo" autocomplete="off">
+      <%- include('../partials/csrf') %>
       <div class="modulo modulo--due">
         <div class="campo">
           <label class="campo__etichetta" for="nome">Nome</label>
@@ -42,7 +43,7 @@
         </div>
       </div>
 
-      <div class="campo" style="max-width:340px">
+      <div class="campo campo--medio">
         <label class="campo__etichetta" for="pwd">Nuova password</label>
         <input type="password" id="pwd" name="password" maxlength="200"
                autocomplete="new-password" placeholder="Lascia vuoto per non cambiarla">

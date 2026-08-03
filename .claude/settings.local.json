@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f __TRACKED_VAR__/p4.db*)",
+      "Bash(cp iconic.db.backup- __TRACKED_VAR__/p4.db)",
+      "Bash(DEBUG=1 DB_PATH=__TRACKED_VAR__/p4.db node scripts/migrate.js --apply)"
+    ]
+  }
+}

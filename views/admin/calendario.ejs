@@ -6,6 +6,10 @@
         <input type="month" id="mese" name="mese" value="<%= mese %>">
       </div>
       <button type="submit" class="pulsante pulsante--primario">Mostra</button>
+      <a href="/admin/calendario?mese=<%= mesePrecedente %>" class="pulsante"
+         aria-label="Mese precedente">&larr; <%= meseIt(mesePrecedente) %></a>
+      <a href="/admin/calendario?mese=<%= meseSuccessivo %>" class="pulsante"
+         aria-label="Mese successivo"><%= meseIt(meseSuccessivo) %> &rarr;</a>
     </form>
   </div>
 </div>
@@ -24,7 +28,10 @@
     <div class="scheda">
       <div class="scheda__etichetta"><%= meseEstesoIt(mese) %></div>
       <div class="scheda__valore"><%= euro(totaleMese) %></div>
-      <div class="scheda__nota"><%= numero(tavoliMese) %> tavoli in <%= numero(giorni.length) %> serate</div>
+      <div class="scheda__nota">
+        <%= numero(tavoliMese) %> tavoli in <%= numero(giorni.length) %> serate.
+        L'importo conta solo i tavoli approvati.
+      </div>
     </div>
   </div>
 
@@ -43,11 +50,11 @@
           <table>
             <thead>
               <tr>
-                <th>Tavolo</th>
-                <th>Collaboratore</th>
-                <th class="num">Persone</th>
-                <th class="num">Importo</th>
-                <th>Stato</th>
+                <th scope="col">Tavolo</th>
+                <th scope="col">Collaboratore</th>
+                <th scope="col" class="num">Persone</th>
+                <th scope="col" class="num">Imponibile</th>
+                <th scope="col">Stato</th>
               </tr>
             </thead>
             <tbody>
@@ -56,7 +63,10 @@
                   <td class="principale"><%= t.nome_tavolo %></td>
                   <td><%= t.pr_nickname %></td>
                   <td class="num"><%= numero(t.numero_persone) %></td>
-                  <td class="num"><%= euro(t.spesa_prevista) %></td>
+                  <td class="num">
+                    <%= euro(t.imponibile) %>
+                    <%- include('../partials/base-calcolo', { tavolo: t }) %>
+                  </td>
                   <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
                 </tr>
               <% }); %>

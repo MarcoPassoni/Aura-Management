@@ -1,0 +1,9 @@
+<%# Dice su quale numero e' stata calcolata la provvigione di un tavolo.
+    Senza questo segno, due tavoli con lo stesso importo mostrato possono avere
+    provvigioni diverse (uno a preventivo, l'altro a consuntivo) e la differenza
+    resterebbe invisibile. %>
+<% if (tavolo.baseCalcolo === 'consuntivo') { %>
+  <span class="segnale segnale--consuntivo" title="Incasso reale della serata">consuntivo</span>
+<% } else if (tavolo.stato === 'approvato') { %>
+  <span class="segnale segnale--preventivo" title="Incasso reale non ancora registrato: si usa il preventivo">preventivo</span>
+<% } %>

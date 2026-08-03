@@ -113,9 +113,8 @@ Thumbs.db
 *.bak
 *_backup.*
 
-# Test files
+# File temporanei dei test
 test_*.sql
-*.test.js
 
 # Build files
 build/

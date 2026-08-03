@@ -1,14 +1,24 @@
 <div class="griglia">
   <div class="scheda">
     <div class="scheda__etichetta">Da ricevere</div>
-    <div class="scheda__valore <%= segno(mia.saldoDaRicevere) %>"><%= euro(mia.saldoDaRicevere) %></div>
-    <div class="scheda__nota">Da <%= mia.pagante.nome %></div>
+    <div class="scheda__valore <%= segno(mia.saldo) %>"><%= euro(mia.saldo) %></div>
+    <div class="scheda__nota">
+      <% if (mia.debitori.length === 1) { %>
+        Da <%= mia.debitori[0].nome %>
+      <% } else if (mia.debitori.length > 1) { %>
+        Da <%= numero(mia.debitori.length) %> soggetti diversi
+      <% } else { %>
+        Nessun compenso maturato
+      <% } %>
+    </div>
   </div>
 
   <div class="scheda">
-    <div class="scheda__etichetta">Maturato totale</div>
-    <div class="scheda__valore"><%= euro(mia.maturatoLordo) %></div>
-    <div class="scheda__nota"><%= percentuale(mia.percentuale) %> su <%= euro(mia.fatturatoSottoalbero) %></div>
+    <div class="scheda__etichetta">Maturato in tutto</div>
+    <div class="scheda__valore"><%= euro(mia.maturato) %></div>
+    <div class="scheda__nota">
+      Su <%= euro(mia.fatturatoSottoalbero) %> di incasso della tua struttura
+    </div>
   </div>
 
   <div class="scheda">
@@ -16,11 +26,14 @@
     <div class="scheda__valore"><%= euro(mia.ricevuto) %></div>
   </div>
 
-  <% if (figli.length) { %>
+  <% if (daPagare.length) { %>
     <div class="scheda">
       <div class="scheda__etichetta">Devo ai collaboratori</div>
-      <div class="scheda__valore"><%= euro(dovutoAiFigli) %></div>
-      <div class="scheda__nota"><%= numero(figli.length) %> collaboratori</div>
+      <div class="scheda__valore"><%= euro(dovutoAiCollaboratori) %></div>
+      <div class="scheda__nota">
+        <%= numero(daPagare.length) %>
+        <%= daPagare.length === 1 ? 'collaboratore' : 'collaboratori' %>
+      </div>
     </div>
   <% } else { %>
     <div class="scheda">
@@ -33,12 +46,25 @@
 
 <% if (inAttesa > 0) { %>
   <div class="avviso avviso--attenzione">
-    Hai <%= numero(inAttesa) %> prenotazioni in attesa di approvazione.
-    Non generano provvigioni finche' non vengono approvate.
+    <div>
+      Hai <%= numero(inAttesa) %>
+      <%= inAttesa === 1 ? 'prenotazione' : 'prenotazioni' %> in attesa di approvazione.
+      Non generano provvigioni finche' non vengono approvate.
+    </div>
   </div>
 <% } %>
 
-<% if (figli.length) { %>
+<% if (mia.saldo < 0) { %>
+  <div class="avviso avviso--errore" role="alert">
+    <div>
+      Risulti aver ricevuto <%= euro(Math.abs(mia.saldo)) %> in piu' di quanto maturato.
+      Di solito succede quando un tavolo gia' pagato viene poi corretto o riaperto.
+      Parlane con il tuo responsabile.
+    </div>
+  </div>
+<% } %>
+
+<% if (daPagare.length) { %>
   <div class="pannello">
     <div class="pannello__testa">
       <h2>La mia struttura</h2>
@@ -49,19 +75,19 @@
         <table>
           <thead>
             <tr>
-              <th>Collaboratore</th>
-              <th class="num">%</th>
-              <th class="num">Incasso</th>
-              <th class="num">Gli devo</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">%</th>
+              <th scope="col" class="num">Incasso</th>
+              <th scope="col" class="num">Gli devo</th>
             </tr>
           </thead>
           <tbody>
-            <% figli.forEach(function (f) { %>
+            <% daPagare.forEach(function (f) { %>
               <tr>
                 <td class="principale"><%= f.nickname %></td>
                 <td class="num"><%= percentuale(f.percentuale) %></td>
                 <td class="num"><%= euro(f.fatturatoSottoalbero) %></td>
-                <td class="num <%= segno(f.saldoDaRicevere) %>"><%= euro(f.saldoDaRicevere) %></td>
+                <td class="num <%= segno(f.rapporto.saldo) %>"><%= euro(f.rapporto.saldo) %></td>
               </tr>
             <% }); %>
           </tbody>
@@ -74,19 +100,20 @@
 <div class="pannello">
   <div class="pannello__testa">
     <h2>Andamento degli ultimi mesi</h2>
+    <span class="secondario">Quanto hai maturato</span>
   </div>
   <div class="pannello__corpo">
     <% if (!andamento.length) { %>
       <div class="vuoto">Nessun tavolo approvato negli ultimi mesi.</div>
     <% } else {
-         const massimo = Math.max.apply(null, andamento.map(function (m) { return m.fatturato; })) || 1; %>
+         const massimo = Math.max.apply(null, andamento.map(function (m) { return m.maturato; })) || 1; %>
       <div class="grafico">
         <% andamento.forEach(function (m) { %>
           <div class="grafico__colonna">
-            <div class="grafico__valore"><%= numero(Math.round(m.fatturato)) %></div>
+            <div class="grafico__valore"><%= numero(Math.round(m.maturato)) %></div>
             <div class="grafico__barra"
-                 style="height: <%= Math.max(2, Math.round((m.fatturato / massimo) * 90)) %>px"
-                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.fatturato) %>"></div>
+                 style="height: <%= Math.max(2, Math.round((m.maturato / massimo) * 90)) %>px"
+                 title="<%= meseEstesoIt(m.mese) %>: <%= euro(m.maturato) %> maturati su <%= euro(m.fatturato) %> di incasso"></div>
             <div class="grafico__etichetta"><%= meseIt(m.mese) %></div>
           </div>
         <% }); %>
@@ -111,11 +138,11 @@
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tavolo</th>
-              <th class="num">Persone</th>
-              <th class="num">Importo</th>
-              <th>Stato</th>
+              <th scope="col">Data</th>
+              <th scope="col">Tavolo</th>
+              <th scope="col" class="num">Persone</th>
+              <th scope="col" class="num">Imponibile</th>
+              <th scope="col">Stato</th>
             </tr>
           </thead>
           <tbody>
@@ -124,7 +151,10 @@
                 <td><%= dataIt(t.data) %></td>
                 <td class="principale"><%= t.nome_tavolo %></td>
                 <td class="num"><%= numero(t.numero_persone) %></td>
-                <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td class="num">
+                  <%= euro(t.imponibile) %>
+                  <%- include('../partials/base-calcolo', { tavolo: t }) %>
+                </td>
                 <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
               </tr>
             <% }); %>
@@ -139,12 +169,18 @@
   <div class="pannello">
     <div class="pannello__testa">
       <h2>Ultimi pagamenti ricevuti</h2>
+      <a href="/pr/provvigioni" class="secondario">Vedi tutto</a>
     </div>
     <div class="pannello__corpo pannello__corpo--stretto">
       <div class="tabella-contenitore">
         <table>
           <thead>
-            <tr><th>Data</th><th>Da</th><th class="num">Importo</th><th>Note</th></tr>
+            <tr>
+              <th scope="col">Data</th>
+              <th scope="col">Da</th>
+              <th scope="col" class="num">Importo</th>
+              <th scope="col">Note</th>
+            </tr>
           </thead>
           <tbody>
             <% pagamentiRicevuti.forEach(function (p) { %>

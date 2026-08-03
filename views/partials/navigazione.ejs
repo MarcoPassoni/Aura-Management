@@ -23,6 +23,7 @@
         { id: 'guadagni',     testo: 'Guadagni',      url: '/admin/guadagni' },
         { id: 'pagamenti',    testo: 'Pagamenti',     url: '/admin/pagamenti' },
         { gruppo: 'Sistema' },
+        { id: 'verifica',     testo: 'Verifica dati',  url: '/admin/verifica' },
         { id: 'impostazioni', testo: 'Impostazioni',  url: '/admin/impostazioni' },
         { id: 'profilo',      testo: 'Il mio profilo', url: '/admin/profilo' }
       ]
@@ -56,7 +57,10 @@
        <%= attiva ? 'aria-current="page"' : '' %>>
       <span><%= voce.testo %></span>
       <% if (conteggio > 0) { %>
-        <span class="conteggio" aria-label="<%= conteggio %> da gestire"><%= conteggio %></span>
+        <%# Il contatore della verifica segnala dati che non tornano, non lavoro
+            arretrato: si distingue nel colore perche' non e' la stessa cosa. %>
+        <span class="conteggio <%= voce.id === 'verifica' ? 'conteggio--allarme' : '' %>"
+              aria-label="<%= conteggio %> <%= voce.id === 'verifica' ? 'da controllare' : 'da gestire' %>"><%= conteggio %></span>
       <% } %>
     </a>
   <% } %>

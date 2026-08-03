@@ -1,13 +1,18 @@
-// Area PR (promoter).
+// Area collaboratore (PR).
 //
 // Riscrittura del file originale (1215 righe). Cosa e' cambiato:
 //  - Una sola dashboard che si adatta: prima esistevano /dashboard e
 //    /dashboard-personal con due calcoli diversi e un redirect automatico tra
-//    le due a seconda che il PR avesse collaboratori.
+//    le due a seconda che il collaboratore avesse a sua volta collaboratori.
 //  - Le provvigioni arrivano da services/commissions.js e tengono conto della
 //    gerarchia. La vecchia calcolaProvvigioniConGerarchia, malgrado il nome,
 //    sommava solo i tavoli personali: chi aveva collaboratori vedeva zero.
-//  - Un PR vede e tocca solo il proprio sottoalbero, verificato a ogni richiesta.
+//  - Ognuno vede e tocca solo il proprio sottoalbero, verificato a ogni richiesta.
+//
+// In questa versione, chi devo pagare non e' piu' dedotto dalla struttura di
+// oggi ma da quanto ciascuno ha effettivamente maturato nei miei confronti: se
+// un collaboratore viene spostato sotto un altro responsabile, quello che aveva
+// gia' maturato resta a carico mio, e quello che maturera' dopo no.
 
 const express = require('express');
 const router = express.Router();
@@ -23,14 +28,15 @@ const v = require('../services/validation');
 const utenti = require('../services/users');
 const tavoliSrv = require('../services/tavoli');
 const pagamentiSrv = require('../services/pagamenti');
+const quoteSrv = require('../services/quote');
 const { all, run } = require('../services/db-helpers');
-const { computeCommissions, getAndamentoMensile, euro } = require('../services/commissions');
+const { computeCommissions, andamentoMaturato, euro } = require('../services/commissions');
 
 const { datiNavigazione } = require('../middleware/navigazione');
 
 router.use(requirePr, apiLimiter, caricaGerarchia, datiNavigazione);
 
-/** Id del PR collegato e di tutti i suoi discendenti. */
+/** Id del collaboratore collegato e di tutti i suoi discendenti. */
 function ambito(req) {
   return req.gerarchia.subtree(req.session.user.id).map((n) => n.id);
 }
@@ -44,24 +50,61 @@ function vista(req, nome, dati = {}) {
   };
 }
 
-/** Dati economici del PR collegato, sempre calcolati sull'intera gerarchia. */
+function gestisci(err, req, res, next, ritorno) {
+  if (err && err.name === 'ErroreValidazione') {
+    req.flash('errore', err.message);
+    return res.redirect(ritorno);
+  }
+  return next(err);
+}
+
+/**
+ * Dati economici del collaboratore collegato.
+ *
+ * Il calcolo viene limitato all'amministrazione di appartenenza invece di
+ * girare su tutto il database: e' lo stesso risultato, su meno righe.
+ */
 async function situazione(req) {
-  const { perPr } = await computeCommissions({});
-  const mia = perPr.get(req.session.user.id);
-  if (!mia) throw new v.ErroreValidazione('Profilo non trovato.');
-  return { perPr, mia };
+  const prId = req.session.user.id;
+  const nodo = req.gerarchia.get(prId);
+  const adminId = nodo ? nodo.adminId : null;
+
+  const calcolo = await computeCommissions(adminId != null ? { adminId } : {});
+  const mia = calcolo.perPr.get(prId);
+  if (!mia) {
+    throw new v.ErroreValidazione(
+      'Il tuo profilo non risulta collegato a nessuna amministrazione. ' +
+        'Contatta il tuo responsabile.'
+    );
+  }
+
+  // Chi ha maturato qualcosa nei miei confronti: sono io a doverli pagare.
+  const daPagare = calcolo.elenco
+    .map((r) => {
+      const rapporto = r.debitori.find((d) => d.tipo === 'pr' && d.id === prId);
+      return rapporto ? { ...r, rapporto } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.rapporto.saldo - a.rapporto.saldo);
+
+  return {
+    calcolo,
+    mia,
+    daPagare,
+    dovutoAiCollaboratori: euro(
+      daPagare.reduce((s, d) => s + Math.max(0, d.rapporto.saldo), 0)
+    )
+  };
 }
 
 // ============================================================== DASHBOARD
 router.get('/dashboard', async (req, res, next) => {
   try {
     const prId = req.session.user.id;
-    const { perPr, mia } = await situazione(req);
-    const nodo = req.gerarchia.get(prId);
-    const figli = nodo ? nodo.children.map((c) => perPr.get(c.id)).filter(Boolean) : [];
+    const { mia, daPagare, dovutoAiCollaboratori } = await situazione(req);
 
     const [andamento, ultimiTavoli, pagamentiRicevuti, inAttesa] = await Promise.all([
-      getAndamentoMensile(ambito(req), 6),
+      andamentoMaturato(prId, 6),
       tavoliSrv.elenca({ prIds: [prId], limite: 5 }),
       pagamentiSrv.ricevutiDa(prId, 5),
       tavoliSrv.contaInAttesa([prId])
@@ -72,13 +115,12 @@ router.get('/dashboard', async (req, res, next) => {
       vista(req, 'dashboard', {
         titolo: 'Dashboard',
         mia,
-        figli,
+        daPagare,
+        dovutoAiCollaboratori,
         andamento,
         ultimiTavoli,
         pagamentiRicevuti,
-        inAttesa,
-        // Quanto devo ancora ai miei collaboratori.
-        dovutoAiFigli: euro(figli.reduce((s, f) => s + Math.max(0, f.saldoDaRicevere || 0), 0))
+        inAttesa
       })
     );
   } catch (err) {
@@ -106,15 +148,41 @@ router.get('/tavoli', async (req, res, next) => {
         soloMiei,
         haTeam: !!(nodo && nodo.children.length),
         filtroStato: stato || '',
-        totaleApprovato: euro(
-          elenco
-            .filter((t) => t.stato === 'approvato')
-            .reduce((s, t) => s + Number(t.spesa_prevista), 0)
+        totaleImponibile: euro(
+          elenco.filter((t) => t.stato === 'approvato').reduce((s, t) => s + t.imponibile, 0)
         )
       })
     );
   } catch (err) {
     next(err);
+  }
+});
+
+/** Dettaglio di un tavolo: chi prende quanto, e con quali percentuali. */
+router.get('/tavoli/:id/dettaglio', async (req, res, next) => {
+  try {
+    const tavolo = await tavoliSrv.getTavolo(v.idNumerico(req.params.id, 'Il tavolo'));
+    if (!tavolo) throw new v.ErroreValidazione('Tavolo non trovato.');
+
+    // Si puo' vedere solo un tavolo del proprio sottoalbero.
+    const controllo = verificaAmbitoPr(req, tavolo.pr_id);
+    if (!controllo.ok) throw new v.ErroreValidazione(controllo.motivo);
+
+    const congelate = await quoteSrv.delTavolo(tavolo.id);
+
+    res.render(
+      'pr/tavolo-dettaglio',
+      vista(req, 'tavoli', {
+        titolo: `Tavolo ${tavolo.nome_tavolo}`,
+        tavolo,
+        // Un collaboratore vede la propria riga e quelle di chi dipende da lui,
+        // non quelle dei propri responsabili: quanto guadagna chi sta sopra non
+        // lo riguarda.
+        quote: congelate.filter((q) => ambito(req).includes(q.pr_id))
+      })
+    );
+  } catch (err) {
+    gestisci(err, req, res, next, '/pr/tavoli');
   }
 });
 
@@ -142,25 +210,21 @@ router.get('/prenotazioni', async (req, res, next) => {
 router.post('/prenotazioni', async (req, res, next) => {
   try {
     await tavoliSrv.creaRichiesta(req.session.user.id, req.body);
-    req.flash('messaggio', 'Richiesta inviata. Verra\' valutata dall\'amministratore.');
+    req.flash('messaggio', "Richiesta inviata. Verra' valutata dall'amministrazione.");
     res.redirect('/pr/prenotazioni');
   } catch (err) {
-    if (err.name === 'ErroreValidazione') {
-      req.flash('errore', err.message);
-      return res.redirect('/pr/prenotazioni');
-    }
-    next(err);
+    gestisci(err, req, res, next, '/pr/prenotazioni');
   }
 });
 
 // =========================================================== ORGANIGRAMMA
 router.get('/organigramma', async (req, res, next) => {
   try {
-    const { perPr } = await situazione(req);
+    const { calcolo } = await situazione(req);
     const nodo = req.gerarchia.get(req.session.user.id);
 
     function costruisci(n) {
-      const dati = perPr.get(n.id);
+      const dati = calcolo.perPr.get(n.id);
       return {
         id: n.id,
         nickname: n.nickname,
@@ -176,7 +240,7 @@ router.get('/organigramma', async (req, res, next) => {
       vista(req, 'organigramma', {
         titolo: 'La mia struttura',
         radice: nodo ? costruisci(nodo) : null,
-        responsabile: nodo && nodo.parent ? nodo.parent.nickname : 'Amministratore'
+        responsabile: nodo && nodo.parent ? nodo.parent.nickname : 'Amministrazione'
       })
     );
   } catch (err) {
@@ -188,13 +252,12 @@ router.get('/organigramma', async (req, res, next) => {
 router.get('/provvigioni', async (req, res, next) => {
   try {
     const prId = req.session.user.id;
-    const { perPr, mia } = await situazione(req);
-    const nodo = req.gerarchia.get(prId);
-    const figli = nodo ? nodo.children.map((c) => perPr.get(c.id)).filter(Boolean) : [];
+    const { mia, daPagare, dovutoAiCollaboratori } = await situazione(req);
 
-    const [ricevuti, versati] = await Promise.all([
+    const [ricevuti, versati, ultime] = await Promise.all([
       pagamentiSrv.ricevutiDa(prId, 50),
-      pagamentiSrv.effettuatiDa('pr', prId, 50)
+      pagamentiSrv.effettuatiDa('pr', prId, 50),
+      pagamentiSrv.ultimePerPr(daPagare.map((d) => d.id), { tipo: 'pr', id: prId })
     ]);
 
     res.render(
@@ -202,10 +265,10 @@ router.get('/provvigioni', async (req, res, next) => {
       vista(req, 'provvigioni', {
         titolo: 'Provvigioni',
         mia,
-        figli,
+        daPagare: daPagare.map((d) => ({ ...d, ultimoPagamento: ultime.get(d.id) || null })),
+        dovutoAiCollaboratori,
         ricevuti,
-        versati,
-        dovutoAiFigli: euro(figli.reduce((s, f) => s + Math.max(0, f.saldoDaRicevere || 0), 0))
+        versati
       })
     );
   } catch (err) {
@@ -215,14 +278,17 @@ router.get('/provvigioni', async (req, res, next) => {
 
 router.post('/provvigioni/paga', async (req, res, next) => {
   try {
-    const controllo = verificaAmbitoPr(req, req.body.destinatario_id);
-    if (!controllo.ok) throw new v.ErroreValidazione(controllo.motivo);
-    if (controllo.id === req.session.user.id) {
+    const id = v.idNumerico(req.body.destinatario_id, 'Il destinatario');
+
+    // Il controllo definitivo lo fa il servizio pagamenti, che verifica dentro
+    // la transazione di essere davvero debitore di questa persona. Qui ci si
+    // limita a un messaggio piu' comprensibile per il caso ovvio.
+    if (id === req.session.user.id) {
       throw new v.ErroreValidazione('Non puoi registrare un pagamento verso te stesso.');
     }
 
     const esito = await pagamentiSrv.registra({
-      destinatarioId: controllo.id,
+      destinatarioId: id,
       paganteTipo: 'pr',
       paganteId: req.session.user.id,
       importo: req.body.importo,
@@ -232,29 +298,22 @@ router.post('/provvigioni/paga', async (req, res, next) => {
 
     req.flash(
       'messaggio',
-      `Pagamento di ${esito.importo} EUR registrato. Residuo: ${esito.residuoDopo} EUR.`
+      `Registrato il pagamento di ${esito.importo.toFixed(2)} EUR a ${esito.destinatario}. ` +
+        `Restano ${esito.residuoDopo.toFixed(2)} EUR.`
     );
     res.redirect('/pr/provvigioni');
   } catch (err) {
-    if (err.name === 'ErroreValidazione') {
-      req.flash('errore', err.message);
-      return res.redirect('/pr/provvigioni');
-    }
-    next(err);
+    gestisci(err, req, res, next, '/pr/provvigioni');
   }
 });
 
 router.post('/provvigioni/:id/annulla', async (req, res, next) => {
   try {
     await pagamentiSrv.annulla(req.params.id, { tipo: 'pr', id: req.session.user.id });
-    req.flash('messaggio', 'Pagamento annullato.');
+    req.flash('messaggio', 'Pagamento annullato: il saldo torna scoperto.');
     res.redirect('/pr/provvigioni');
   } catch (err) {
-    if (err.name === 'ErroreValidazione') {
-      req.flash('errore', err.message);
-      return res.redirect('/pr/provvigioni');
-    }
-    next(err);
+    gestisci(err, req, res, next, '/pr/provvigioni');
   }
 });
 
@@ -277,6 +336,7 @@ router.get('/richiesta-nuovo-pr', requirePrConPoteri, async (req, res, next) => 
         possibiliPadri: req.gerarchia
           .subtree(prId)
           .filter((n) => n.attivo)
+          .sort((a, b) => a.depth - b.depth || a.nickname.localeCompare(b.nickname, 'it'))
           .map((n) => ({
             id: n.id,
             etichetta: n.id === prId ? `${n.nickname} (io)` : n.nickname,
@@ -309,7 +369,7 @@ router.post('/richiesta-nuovo-pr', requirePrConPoteri, async (req, res, next) =>
     };
 
     if (await utenti.nicknameEsiste(dati.nickname)) {
-      throw new v.ErroreValidazione('Questo nickname e\' gia\' in uso o gia\' richiesto.');
+      throw new v.ErroreValidazione("Questo nickname e' gia' in uso o gia' richiesto.");
     }
     if (dati.percentuale > padre.percentuale_provvigione) {
       throw new v.ErroreValidazione(
@@ -340,14 +400,10 @@ router.post('/richiesta-nuovo-pr', requirePrConPoteri, async (req, res, next) =>
       ]
     );
 
-    req.flash('messaggio', 'Richiesta inviata all\'amministratore.');
+    req.flash('messaggio', "Richiesta inviata all'amministrazione.");
     res.redirect('/pr/richiesta-nuovo-pr');
   } catch (err) {
-    if (err.name === 'ErroreValidazione') {
-      req.flash('errore', err.message);
-      return res.redirect('/pr/richiesta-nuovo-pr');
-    }
-    next(err);
+    gestisci(err, req, res, next, '/pr/richiesta-nuovo-pr');
   }
 });
 
@@ -361,7 +417,7 @@ router.get('/profilo', async (req, res, next) => {
       vista(req, 'profilo', {
         titolo: 'Il mio profilo',
         pr,
-        responsabile: nodo && nodo.parent ? nodo.parent.nickname : 'Amministratore'
+        responsabile: nodo && nodo.parent ? nodo.parent.nickname : 'Amministrazione'
       })
     );
   } catch (err) {
@@ -371,8 +427,8 @@ router.get('/profilo', async (req, res, next) => {
 
 router.post('/profilo', async (req, res, next) => {
   try {
-    // Un PR puo' cambiare i propri recapiti e la password, non la percentuale
-    // ne' il responsabile: quelli li decide l'amministratore.
+    // Un collaboratore puo' cambiare i propri recapiti e la password, non la
+    // percentuale ne' il responsabile: quelli li decide l'amministrazione.
     const campi = {
       nome: v.nome(req.body.nome),
       cognome: v.nome(req.body.cognome, 'Il cognome'),
@@ -386,11 +442,7 @@ router.post('/profilo', async (req, res, next) => {
     req.flash('messaggio', 'Profilo aggiornato.');
     res.redirect('/pr/profilo');
   } catch (err) {
-    if (err.name === 'ErroreValidazione') {
-      req.flash('errore', err.message);
-      return res.redirect('/pr/profilo');
-    }
-    next(err);
+    gestisci(err, req, res, next, '/pr/profilo');
   }
 });
 

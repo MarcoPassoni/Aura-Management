@@ -28,11 +28,23 @@
   <div class="scheda">
     <div class="scheda__etichetta">Risultati</div>
     <div class="scheda__valore"><%= numero(elenco.length) %></div>
+    <div class="scheda__nota">Al massimo 500 righe per volta</div>
   </div>
   <div class="scheda">
-    <div class="scheda__etichetta">Incasso approvato</div>
-    <div class="scheda__valore"><%= euro(totaleApprovato) %></div>
-    <div class="scheda__nota">Solo i tavoli approvati generano provvigioni</div>
+    <div class="scheda__etichetta">Imponibile approvato</div>
+    <div class="scheda__valore"><%= euro(totaleImponibile) %></div>
+    <div class="scheda__nota">
+      <% if (senzaConsuntivo > 0) { %>
+        <%= numero(senzaConsuntivo) %> ancora a preventivo
+      <% } else { %>
+        Tutti gli incassi sono a consuntivo
+      <% } %>
+    </div>
+  </div>
+  <div class="scheda">
+    <div class="scheda__etichetta">Provvigioni maturate</div>
+    <div class="scheda__valore"><%= euro(totaleProvvigioni) %></div>
+    <div class="scheda__nota">Costo complessivo dei tavoli in elenco</div>
   </div>
 </div>
 
@@ -45,44 +57,101 @@
         <table>
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tavolo</th>
-              <th>Collaboratore</th>
-              <th class="num">Persone</th>
-              <th class="num">Importo</th>
-              <th>Stato</th>
-              <th></th>
+              <th scope="col">Data</th>
+              <th scope="col">Tavolo</th>
+              <th scope="col">Collaboratore</th>
+              <th scope="col" class="num">Persone</th>
+              <th scope="col" class="num">Preventivo</th>
+              <th scope="col" class="num">Incasso reale</th>
+              <th scope="col" class="num">Provvigioni</th>
+              <th scope="col">Stato</th>
+              <th scope="col"><span class="solo-lettori">Azioni</span></th>
             </tr>
           </thead>
           <tbody>
             <% elenco.forEach(function (t) { %>
-              <tr>
+              <tr<%= t.escluso ? ' class="riga--allarme"' : '' %>>
                 <td><%= dataIt(t.data) %></td>
                 <td>
                   <div class="principale"><%= t.nome_tavolo %></div>
                   <% if (t.note_tavolo) { %><div class="secondario"><%= t.note_tavolo %></div><% } %>
-                  <% if (t.modificata) { %>
+                  <% if (t.omaggi) { %><div class="secondario">Omaggi: <%= t.omaggi %></div><% } %>
+                  <% if (t.modificata && t.note_modifiche) { %>
                     <div class="secondario">Modificato: <%= t.note_modifiche %></div>
                   <% } %>
                   <% if (t.stato === 'rifiutato' && t.motivo_rifiuto) { %>
                     <div class="secondario">Motivo: <%= t.motivo_rifiuto %></div>
                   <% } %>
+                  <% if (t.escluso) { %>
+                    <div class="secondario num--negativo">
+                      Escluso dai calcoli: catena di provvigioni non ricostruibile.
+                      <a href="/admin/verifica">Vedi perche'</a>
+                    </div>
+                  <% } %>
                 </td>
                 <td><%= t.pr_nickname %></td>
                 <td class="num"><%= numero(t.numero_persone) %></td>
-                <td class="num"><%= euro(t.spesa_prevista) %></td>
-                <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
-                <td>
-                  <% if (t.stato !== 'in_attesa') { %>
-                    <form method="post" action="/admin/tavoli/<%= t.id %>/riapri"
-                          data-conferma="Riportare questo tavolo in attesa di decisione?">
-                      <button type="submit" class="pulsante pulsante--piccolo">Riapri</button>
-                    </form>
+                <td class="num <%= t.baseCalcolo === 'consuntivo' ? 'num--superato' : '' %>">
+                  <%= euro(t.spesa_prevista) %>
+                </td>
+                <td class="num">
+                  <% if (t.baseCalcolo === 'consuntivo') { %>
+                    <span class="principale"><%= euro(t.incasso_effettivo) %></span>
                   <% } else { %>
-                    <a href="/admin/approvazioni" class="pulsante pulsante--piccolo">Valuta</a>
+                    <span class="secondario">da inserire</span>
                   <% } %>
                 </td>
+                <td class="num"><%= t.stato === 'approvato' ? euro(t.costoProvvigioni) : '-' %></td>
+                <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
+                <td>
+                  <div class="azioni">
+                    <a href="/admin/tavoli/<%= t.id %>/dettaglio" class="pulsante pulsante--piccolo">Dettaglio</a>
+                    <% if (t.stato === 'in_attesa') { %>
+                      <a href="/admin/approvazioni" class="pulsante pulsante--piccolo">Valuta</a>
+                    <% } else { %>
+                      <button type="button" class="pulsante pulsante--piccolo"
+                              data-apre="incasso-<%= t.id %>" aria-expanded="false">Incasso</button>
+                    <% } %>
+                  </div>
+                </td>
               </tr>
+
+              <% if (t.stato !== 'in_attesa') { %>
+                <tr id="incasso-<%= t.id %>" hidden>
+                  <td colspan="9" class="cella-espansa">
+                    <form method="post" action="/admin/tavoli/<%= t.id %>/incasso" class="filtri">
+                      <%- include('../partials/csrf') %>
+                      <input type="hidden" name="ritorno" value="/admin/tavoli">
+                      <div class="campo">
+                        <label class="campo__etichetta" for="inc-<%= t.id %>">Incasso reale della serata</label>
+                        <input type="number" id="inc-<%= t.id %>" name="incasso_effettivo"
+                               min="0" max="1000000" step="0.01" inputmode="decimal"
+                               value="<%= t.incasso_effettivo === null ? '' : t.incasso_effettivo %>"
+                               placeholder="<%= t.spesa_prevista %>">
+                        <span class="campo__aiuto">
+                          Lascia vuoto per tornare al preventivo di <%= euro(t.spesa_prevista) %>.
+                          Le provvigioni di questo tavolo si aggiornano subito; le percentuali
+                          restano quelle congelate all'approvazione.
+                        </span>
+                      </div>
+                      <button type="submit" class="pulsante pulsante--primario">Salva incasso</button>
+                    </form>
+
+                    <hr class="separatore">
+
+                    <div class="azioni">
+                      <a href="/admin/approvazioni/<%= t.id %>/modifica" class="pulsante pulsante--piccolo">
+                        Correggi i dati del tavolo
+                      </a>
+                      <form method="post" action="/admin/tavoli/<%= t.id %>/riapri"
+                            data-conferma="Riportare questo tavolo in attesa? Uscira' dai calcoli finche' non lo decidi di nuovo.">
+                        <%- include('../partials/csrf') %>
+                        <button type="submit" class="pulsante pulsante--piccolo">Riapri</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% } %>
             <% }); %>
           </tbody>
         </table>
