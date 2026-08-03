@@ -876,7 +876,7 @@ router.post('/richieste-pr/:id/approva', async (req, res, next) => {
     const controlloPadre = verificaAmbitoAdmin(req, padreId);
     if (!controlloPadre.ok) throw new v.ErroreValidazione(controlloPadre.motivo);
 
-    if (await utenti.nicknameEsiste(richiesta.nickname)) {
+    if (await utenti.nicknameEsiste(richiesta.nickname, { escludiRichiestaId: id })) {
       throw new v.ErroreValidazione(
         `Il nickname ${richiesta.nickname} nel frattempo e' stato assegnato a qualcun altro.`
       );

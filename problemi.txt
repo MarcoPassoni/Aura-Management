@@ -1,0 +1,1 @@
+il pr ha fatto una richiesta per un collaboratore, entrando come amministratore ho provato ad accettarla ma mi da il problema "Il nickname TommasoBricco nel frattempo e' stato assegnato a qualcun altro.". 

@@ -41,7 +41,7 @@ async function findByNickname(nickname) {
   return null;
 }
 
-async function nicknameEsiste(nickname, { escludiPrId = null } = {}) {
+async function nicknameEsiste(nickname, { escludiPrId = null, escludiRichiestaId = null } = {}) {
   const nick = String(nickname || '').trim();
   if (!nick) return false;
 
@@ -54,10 +54,18 @@ async function nicknameEsiste(nickname, { escludiPrId = null } = {}) {
   if (pr) return true;
 
   // Anche una richiesta di creazione ancora aperta prenota il nickname.
-  const richiesta = await get(
-    "SELECT 1 AS x FROM richieste_creazione_pr WHERE nickname = ? COLLATE NOCASE AND stato = 'in_attesa'",
-    [nick]
-  );
+  // Va esclusa la richiesta che si sta eventualmente approvando: altrimenti
+  // la query trova se stessa (e' ancora 'in_attesa' finche' l'approvazione
+  // non si conclude) e blocca l'approvazione di qualsiasi richiesta.
+  const richiesta = escludiRichiestaId
+    ? await get(
+        "SELECT 1 AS x FROM richieste_creazione_pr WHERE nickname = ? COLLATE NOCASE AND stato = 'in_attesa' AND id != ?",
+        [nick, escludiRichiestaId]
+      )
+    : await get(
+        "SELECT 1 AS x FROM richieste_creazione_pr WHERE nickname = ? COLLATE NOCASE AND stato = 'in_attesa'",
+        [nick]
+      );
   return !!richiesta;
 }
 
