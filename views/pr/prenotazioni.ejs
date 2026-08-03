@@ -85,6 +85,7 @@
               <th>Tavolo</th>
               <th class="num">Persone</th>
               <th class="num">Importo</th>
+              <th>Presso</th>
               <th>Inviata</th>
             </tr>
           </thead>
@@ -95,6 +96,7 @@
                 <td class="principale"><%= t.nome_tavolo %></td>
                 <td class="num"><%= numero(t.numero_persone) %></td>
                 <td class="num"><%= euro(t.spesa_prevista) %></td>
+                <td class="secondario"><%= t.revisorePressoChi || '-' %></td>
                 <td class="secondario"><%= dataOraIt(t.creato_il) %></td>
               </tr>
             <% }); %>

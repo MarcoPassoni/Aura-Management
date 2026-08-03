@@ -46,6 +46,42 @@
   </div>
 </div>
 
+<% if (tavolo.stato === 'in_attesa' && revisione) { %>
+  <div class="pannello">
+    <div class="pannello__testa">
+      <h2>Stato della revisione</h2>
+    </div>
+    <div class="pannello__corpo">
+      <div class="griglia griglia--compatta">
+        <div>
+          <div class="scheda__etichetta">Si trova adesso presso</div>
+          <div class="principale"><%= revisione.pressoChi || 'in elaborazione' %></div>
+        </div>
+        <% if (revisione.percentualeDecisa !== null) { %>
+          <div>
+            <div class="scheda__etichetta">La tua percentuale su questo tavolo</div>
+            <div class="principale"><%= percentuale(revisione.percentualeDecisa) %></div>
+            <% if (revisione.importo !== null) { %>
+              <div class="secondario"><%= euro(revisione.importo) %>, provvisorio</div>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+      <% if (revisione.percentualeDecisa === null) { %>
+        <p class="nota-finale">
+          La percentuale non e' ancora stata decisa: lo sara' quando la richiesta arrivera'
+          al tuo responsabile diretto.
+        </p>
+      <% } else { %>
+        <p class="nota-finale">
+          Provvisorio finche' la richiesta non arriva in fondo alla catena e viene approvata
+          dall'amministrazione: da quel momento diventa definitivo.
+        </p>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+
 <div class="pannello">
   <div class="pannello__testa">
     <h2>La tua provvigione su questo tavolo</h2>
@@ -53,7 +89,11 @@
   </div>
   <div class="pannello__corpo pannello__corpo--stretto">
     <% if (!quote.length) { %>
-      <div class="vuoto">Su questo tavolo non risulta alcuna provvigione a tuo favore.</div>
+      <div class="vuoto">
+        <%= tavolo.stato === 'approvato'
+          ? 'Su questo tavolo non risulta alcuna provvigione a tuo favore.'
+          : 'Questo tavolo non e\' ancora approvato: nessuna provvigione congelata.' %>
+      </div>
     <% } else { %>
       <div class="tabella-contenitore">
         <table>

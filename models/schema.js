@@ -23,10 +23,16 @@
 //
 //  * `quote_tavolo` fotografa le percentuali al momento dell'approvazione, cosi'
 //    che cambiare una percentuale non riscriva il passato gia' pagato.
+//
+//  * `revisioni_tavolo` registra il passaggio di mano di una richiesta lungo la
+//    catena di responsabilita', prima che arrivi all'amministrazione: vedi
+//    services/revisioni.js per il ragionamento completo.
 
 const { run, all, get } = require('../services/db-helpers');
 const { initSettingsSchema } = require('../services/settings');
 const quote = require('../services/quote');
+const revisioni = require('../services/revisioni');
+const { logger } = require('../utils/secure-logger');
 
 const TAVOLO_STATI = ['in_attesa', 'approvato', 'rifiutato'];
 
@@ -100,6 +106,13 @@ async function initSchema({ silenzioso = false } = {}) {
   // l'unico punto da cui un importo puo' entrare.
   await assicuraColonna('tavoli', 'incasso_effettivo', 'REAL');
 
+  // `revisione_tipo`/`revisione_id` dicono presso chi si trova adesso una
+  // richiesta in attesa: 'pr' e l'id di un collaboratore mentre sale la catena,
+  // 'admin' quando e' pronta per l'approvazione ufficiale. NULL quando il
+  // tavolo non e' piu' in_attesa. Vedi services/revisioni.js.
+  await assicuraColonna('tavoli', 'revisione_tipo', 'TEXT');
+  await assicuraColonna('tavoli', 'revisione_id', 'INTEGER');
+
   // ---- Quote di provvigione congelate -------------------------------------
   //
   // Una riga per ogni collaboratore che partecipa a un tavolo approvato, con la
@@ -117,6 +130,32 @@ async function initSchema({ silenzioso = false } = {}) {
     debitore_id INTEGER NOT NULL,
     admin_id INTEGER NOT NULL,
     PRIMARY KEY (tavolo_id, pr_id),
+    FOREIGN KEY(tavolo_id) REFERENCES tavoli(id) ON DELETE CASCADE,
+    FOREIGN KEY(pr_id) REFERENCES pr(id)
+  )`);
+
+  // ---- Passaggi di revisione -----------------------------------------------
+  //
+  // Una riga per ogni volta che un collaboratore, risalendo la catena, ha
+  // deciso la percentuale del proprio sottoposto diretto su un tavolo
+  // specifico (o l'amministrazione ha deciso quella del capofila, all'atto
+  // dell'approvazione finale). `livello` usa la stessa numerazione di
+  // quote_tavolo (0 = venditore). Una riga per (tavolo, livello): un livello
+  // non puo' essere deciso due volte per lo stesso tavolo.
+  await run(`CREATE TABLE IF NOT EXISTS revisioni_tavolo (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    tavolo_id INTEGER NOT NULL,
+    livello INTEGER NOT NULL CHECK(livello >= 0),
+    pr_id INTEGER NOT NULL,
+    percentuale_suggerita REAL NOT NULL
+      CHECK(percentuale_suggerita >= 0 AND percentuale_suggerita <= 100),
+    percentuale_decisa REAL NOT NULL
+      CHECK(percentuale_decisa >= 0 AND percentuale_decisa <= 100),
+    revisore_tipo TEXT NOT NULL CHECK(revisore_tipo IN ('pr', 'admin')),
+    revisore_id INTEGER NOT NULL,
+    commento TEXT,
+    creato_il TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(tavolo_id, livello),
     FOREIGN KEY(tavolo_id) REFERENCES tavoli(id) ON DELETE CASCADE,
     FOREIGN KEY(pr_id) REFERENCES pr(id)
   )`);
@@ -162,15 +201,31 @@ async function initSchema({ silenzioso = false } = {}) {
   // volta sola. A regime questa chiamata non trova nulla da fare.
   const recupero = await quote.ricostruisciMancanti();
   if (!silenzioso && (recupero.ricostruiti || recupero.falliti.length)) {
-    console.log(
-      `[SCHEMA] Quote di provvigione ricostruite per ${recupero.ricostruiti} tavoli gia' approvati.`
+    logger.info(
+      `Quote di provvigione ricostruite per ${recupero.ricostruiti} tavoli gia' approvati.`,
+      { categoria: 'schema', ricostruiti: recupero.ricostruiti }
     );
     if (recupero.falliti.length) {
-      console.warn(
-        `[SCHEMA] ${recupero.falliti.length} tavoli approvati non hanno una catena ` +
-          'ricostruibile e restano esclusi dai calcoli: vedi la pagina Verifica.'
+      logger.warn(
+        `${recupero.falliti.length} tavoli approvati non hanno una catena ricostruibile ` +
+          'e restano esclusi dai calcoli: vedi la pagina Verifica.',
+        { categoria: 'schema', falliti: recupero.falliti.length }
       );
     }
+  }
+
+  // I tavoli in attesa creati prima dell'introduzione della revisione a
+  // catena non sono mai passati da nessun collaboratore intermedio, e i loro
+  // venditori non si aspettano che qualcuno debba rivederli: vanno instradati
+  // direttamente in coda all'amministrazione, non nel nuovo flusso. Una volta
+  // sola, poi ogni tavolo nuovo nasce gia' instradato correttamente.
+  const instradati = await revisioni.instradaEsistenti();
+  if (!silenzioso && instradati > 0) {
+    logger.info(
+      `${instradati} richieste in attesa da prima di questo aggiornamento sono state ` +
+        'instradate direttamente in coda all\'amministrazione.',
+      { categoria: 'schema', instradati }
+    );
   }
 
   return recupero;
@@ -187,6 +242,8 @@ async function creaIndici() {
     'CREATE INDEX IF NOT EXISTS idx_quote_pr ON quote_tavolo(pr_id)',
     'CREATE INDEX IF NOT EXISTS idx_quote_debitore ON quote_tavolo(debitore_tipo, debitore_id)',
     'CREATE INDEX IF NOT EXISTS idx_quote_admin ON quote_tavolo(admin_id)',
+    'CREATE INDEX IF NOT EXISTS idx_tavoli_revisione ON tavoli(revisione_tipo, revisione_id)',
+    'CREATE INDEX IF NOT EXISTS idx_revisioni_tavolo ON revisioni_tavolo(tavolo_id)',
     'CREATE INDEX IF NOT EXISTS idx_pagamenti_dest ON pagamenti_provvigioni(pr_destinatario_id)',
     'CREATE INDEX IF NOT EXISTS idx_pagamenti_coppia ON pagamenti_provvigioni(pr_destinatario_id, pagante_tipo, pagante_id)',
     'CREATE INDEX IF NOT EXISTS idx_richieste_pr_stato ON richieste_creazione_pr(stato)'

@@ -28,6 +28,7 @@ const tavoliSrv = require('../services/tavoli');
 const pagamentiSrv = require('../services/pagamenti');
 const impostazioniSrv = require('../services/settings');
 const quoteSrv = require('../services/quote');
+const revisioni = require('../services/revisioni');
 const diagnostica = require('../services/diagnostica');
 const { get, all, run, transaction } = require('../services/db-helpers');
 const {
@@ -38,6 +39,7 @@ const {
 } = require('../services/commissions');
 
 const { datiNavigazione } = require('../middleware/navigazione');
+const { logAzione } = require('../utils/secure-logger');
 
 router.use(requireAdmin, adminLimiter, caricaGerarchia, datiNavigazione);
 
@@ -230,6 +232,11 @@ router.post('/staff/crea', async (req, res, next) => {
     }
 
     await utenti.creaPr({ ...dati, fk_padre: padreId, padre_tipo: padreTipo });
+    logAzione(
+      'collaboratore_creato',
+      { nickname: dati.nickname, percentuale: dati.percentuale_provvigione, responsabile: `${padreTipo}:${padreId}` },
+      req
+    );
     req.flash('messaggio', `Collaboratore ${dati.nickname} creato.`);
     res.redirect('/admin/staff');
   } catch (err) {
@@ -283,6 +290,18 @@ router.post('/staff/:id/modifica', async (req, res, next) => {
       campi.percentuale_provvigione !== undefined &&
       campi.percentuale_provvigione !== nodo.percentuale_provvigione;
 
+    logAzione(
+      'collaboratore_modificato',
+      {
+        nickname: nodo.nickname,
+        campi: Object.keys(campi).filter((c) => c !== 'password'),
+        passwordCambiata: !!campi.password,
+        percentualePrecedente: cambiata ? nodo.percentuale_provvigione : undefined,
+        percentualeNuova: cambiata ? campi.percentuale_provvigione : undefined
+      },
+      req
+    );
+
     req.flash(
       'messaggio',
       cambiata
@@ -327,6 +346,15 @@ router.post('/staff/:id/sposta', async (req, res, next) => {
 
     const nuovoNome =
       tipo === 'admin' ? "l'amministrazione" : req.gerarchia.get(padreId).nickname;
+    logAzione(
+      'collaboratore_spostato',
+      {
+        nickname: nodo.nickname,
+        responsabilePrecedente: nodo.parent ? nodo.parent.nickname : 'amministrazione',
+        responsabileNuovo: nuovoNome
+      },
+      req
+    );
     req.flash(
       'messaggio',
       `${nodo.nickname} ora dipende da ${nuovoNome}. I compensi gia' maturati restano ` +
@@ -354,6 +382,7 @@ router.post('/staff/:id/disattiva', async (req, res, next) => {
     }
 
     await utenti.disattivaPr(controllo.id);
+    logAzione('collaboratore_disattivato', { nickname: nodo.nickname }, req);
     req.flash(
       'messaggio',
       `${nodo.nickname} disattivato: non puo' piu' accedere, ma il suo storico e i ` +
@@ -369,7 +398,9 @@ router.post('/staff/:id/riattiva', async (req, res, next) => {
   try {
     const controllo = verificaAmbitoAdmin(req, req.params.id);
     if (!controllo.ok) throw new v.ErroreValidazione(controllo.motivo);
+    const nodo = req.gerarchia.get(controllo.id);
     await utenti.riattivaPr(controllo.id);
+    logAzione('collaboratore_riattivato', { nickname: nodo.nickname }, req);
     req.flash('messaggio', 'Collaboratore riattivato.');
     res.redirect('/admin/staff');
   } catch (err) {
@@ -394,11 +425,27 @@ router.get('/tavoli', async (req, res, next) => {
     const elenco = await tavoliSrv.elenca({ prIds, stato, from, to, limite: 500 });
     const approvati = elenco.filter((t) => t.stato === 'approvato');
 
+    // Per mostrare "in revisione presso X" invece del solo id: un'unica
+    // ricerca per tutti i nickname coinvolti, non una per riga.
+    const revisoriPr = [...new Set(elenco.filter((t) => t.revisione_tipo === 'pr').map((t) => t.revisione_id))];
+    const nickPerRevisore = new Map(
+      revisoriPr.length
+        ? req.gerarchia
+            .forAdmin(req.session.user.id)
+            .filter((n) => revisoriPr.includes(n.id))
+            .map((n) => [n.id, n.nickname])
+        : []
+    );
+
     res.render(
       'admin/tavoli',
       vista(req, 'tavoli', {
         titolo: 'Tavoli',
-        elenco,
+        elenco: elenco.map((t) => ({
+          ...t,
+          revisorePressoChi:
+            t.revisione_tipo === 'pr' ? nickPerRevisore.get(t.revisione_id) || null : null
+        })),
         filtri: { stato: stato || '', da: from || '', a: to || '' },
         totaleImponibile: euro(approvati.reduce((s, t) => s + t.imponibile, 0)),
         totaleProvvigioni: euro(approvati.reduce((s, t) => s + t.costoProvvigioni, 0)),
@@ -422,11 +469,16 @@ async function tavoloInAmbito(req, tavoloId) {
 /** Registra l'incasso reale della serata. */
 router.post('/tavoli/:id/incasso', async (req, res, next) => {
   try {
-    await tavoloInAmbito(req, req.params.id);
+    const tavolo = await tavoloInAmbito(req, req.params.id);
     const esito = await tavoliSrv.impostaIncasso(
       req.params.id,
       req.body.incasso_effettivo,
       req.session.user.nickname
+    );
+    logAzione(
+      'incasso_registrato',
+      { tavolo: tavolo.nome_tavolo, precedente: esito.precedente, nuovo: esito.nuovo },
+      req
     );
     req.flash(
       'messaggio',
@@ -443,8 +495,9 @@ router.post('/tavoli/:id/incasso', async (req, res, next) => {
 
 router.post('/tavoli/:id/riapri', async (req, res, next) => {
   try {
-    await tavoloInAmbito(req, req.params.id);
+    const tavolo = await tavoloInAmbito(req, req.params.id);
     await tavoliSrv.riapri(req.params.id, req.session.user.nickname);
+    logAzione('tavolo_riaperto', { tavolo: tavolo.nome_tavolo, statoPrecedente: tavolo.stato }, req);
     req.flash(
       'messaggio',
       'Tavolo riportato in attesa di decisione: e\' uscito dai calcoli finche\' non ' +
@@ -456,13 +509,26 @@ router.post('/tavoli/:id/riapri', async (req, res, next) => {
   }
 });
 
+/**
+ * Situazione della revisione di un tavolo, con gestione dell'eventuale catena
+ * non risolvibile: si vede il problema qui invece di far fallire il resto
+ * della pagina.
+ */
+async function situazioneSicura(tavoloId) {
+  try {
+    const dati = await revisioni.situazione(tavoloId);
+    return { ok: true, ...dati };
+  } catch (err) {
+    return { ok: false, motivo: err.message, righe: [], costoTotale: 0 };
+  }
+}
+
 /** Come e' ripartito un tavolo, riga per riga. */
 router.get('/tavoli/:id/dettaglio', async (req, res, next) => {
   try {
     const tavolo = await tavoloInAmbito(req, req.params.id);
     const congelate = await quoteSrv.delTavolo(tavolo.id);
-    const previste =
-      tavolo.stato === 'in_attesa' ? await tavoliSrv.ripartizionePrevista(tavolo) : null;
+    const revisione = tavolo.stato === 'in_attesa' ? await situazioneSicura(tavolo.id) : null;
 
     res.render(
       'admin/tavolo-dettaglio',
@@ -472,7 +538,7 @@ router.get('/tavoli/:id/dettaglio', async (req, res, next) => {
         // Gli importi arrivano gia' calcolati dal servizio: sono gli stessi che
         // finiscono nei totali delle pagine economiche.
         quote: congelate,
-        previste
+        revisione
       })
     );
   } catch (err) {
@@ -484,26 +550,35 @@ router.get('/tavoli/:id/dettaglio', async (req, res, next) => {
 router.get('/approvazioni', async (req, res, next) => {
   try {
     const prIds = ambito(req);
+    // Solo le richieste arrivate in fondo alla catena di revisione: le altre
+    // sono ancora ferme presso un collaboratore intermedio e non spettano
+    // ancora all'amministrazione (services/revisioni.js).
+    //
     // Il limite e' basso di proposito: ogni riga qui sotto ha una scheda
-    // completa e una simulazione della ripartizione, che costa una query. Con
-    // piu' di cinquanta richieste aperte conviene smaltirne un blocco per volta.
-    const elenco = await tavoliSrv.elenca({ prIds, stato: tavoliSrv.STATI.ATTESA, limite: 50 });
+    // completa e l'intero trail di revisione, che costano una query. Con piu'
+    // di cinquanta richieste pronte conviene smaltirne un blocco per volta.
+    const elenco = await tavoliSrv.elenca({
+      prIds,
+      stato: tavoliSrv.STATI.ATTESA,
+      revisioneTipo: 'admin',
+      limite: 50
+    });
 
-    // Quanto costera' ciascun tavolo se approvato adesso: e' la stessa
-    // ripartizione che verra' congelata, calcolata in anticipo. Se la catena e'
-    // rotta si vede qui, non dopo aver premuto Approva.
-    const conStima = await Promise.all(
-      elenco.map(async (t) => ({ ...t, stima: await tavoliSrv.ripartizionePrevista(t) }))
+    // Il trail di ogni tavolo: cosa hanno gia' deciso i collaboratori sopra il
+    // venditore, con i loro commenti, e quanto costerebbe la percentuale del
+    // capofila cosi' com'e' suggerita adesso.
+    const conRevisione = await Promise.all(
+      elenco.map(async (t) => ({ ...t, revisione: await situazioneSicura(t.id) }))
     );
 
     res.render(
       'admin/approvazioni',
       vista(req, 'approvazioni', {
         titolo: 'Approvazioni',
-        elenco: conStima,
-        totaleImponibile: euro(conStima.reduce((s, t) => s + t.imponibile, 0)),
-        totaleCosto: euro(conStima.reduce((s, t) => s + (t.stima.costoTotale || 0), 0)),
-        bloccati: conStima.filter((t) => !t.stima.ok).length
+        elenco: conRevisione,
+        totaleImponibile: euro(conRevisione.reduce((s, t) => s + t.imponibile, 0)),
+        totaleCosto: euro(conRevisione.reduce((s, t) => s + (t.revisione.costoTotale || 0), 0)),
+        bloccati: conRevisione.filter((t) => !t.revisione.ok).length
       })
     );
   } catch (err) {
@@ -513,9 +588,29 @@ router.get('/approvazioni', async (req, res, next) => {
 
 router.post('/approvazioni/:id/approva', async (req, res, next) => {
   try {
-    await tavoloInAmbito(req, req.params.id);
-    const esito = await tavoliSrv.approva(req.params.id, req.session.user.nickname);
+    const tavolo = await tavoloInAmbito(req, req.params.id);
+    const percentualeCapofila =
+      req.body.percentuale_capofila === undefined || req.body.percentuale_capofila === ''
+        ? null
+        : req.body.percentuale_capofila;
+
+    const esito = await tavoliSrv.approva(
+      req.params.id,
+      req.session.user.nickname,
+      req.session.user.id,
+      percentualeCapofila
+    );
     const capofila = esito.quote[esito.quote.length - 1];
+    logAzione(
+      'tavolo_approvato',
+      {
+        tavolo: tavolo.nome_tavolo,
+        imponibile: tavolo.imponibile,
+        percentualeCapofila: capofila.percentuale,
+        capofilaModificata: percentualeCapofila !== null
+      },
+      req
+    );
     req.flash(
       'messaggio',
       `Tavolo approvato. Provvigioni congelate al ${capofila.percentuale}% del capofila: ` +
@@ -529,8 +624,9 @@ router.post('/approvazioni/:id/approva', async (req, res, next) => {
 
 router.post('/approvazioni/:id/rifiuta', async (req, res, next) => {
   try {
-    await tavoloInAmbito(req, req.params.id);
+    const tavolo = await tavoloInAmbito(req, req.params.id);
     await tavoliSrv.rifiuta(req.params.id, req.session.user.nickname, req.body.motivo);
+    logAzione('tavolo_rifiutato', { tavolo: tavolo.nome_tavolo, motivo: req.body.motivo }, req);
     req.flash('messaggio', 'Tavolo rifiutato. Resta consultabile nello storico.');
     res.redirect('/admin/approvazioni');
   } catch (err) {
@@ -538,23 +634,36 @@ router.post('/approvazioni/:id/rifiuta', async (req, res, next) => {
   }
 });
 
+/**
+ * Dove tornare dopo aver corretto un tavolo: /admin/approvazioni solo se e'
+ * davvero pronto per l'amministrazione (revisione_tipo === 'admin'), perche'
+ * altrimenti quella pagina non lo mostrerebbe nemmeno - ancora fermo presso
+ * un collaboratore, o gia' deciso.
+ */
+function ritornoModifica(tavolo) {
+  return tavolo.stato === 'in_attesa' && tavolo.revisione_tipo === 'admin'
+    ? '/admin/approvazioni'
+    : '/admin/tavoli';
+}
+
 router.get('/approvazioni/:id/modifica', async (req, res, next) => {
   try {
     const tavolo = await tavoloInAmbito(req, req.params.id);
     const pr = req.gerarchia.get(tavolo.pr_id);
     const quote = tavolo.stato === 'approvato' ? await quoteSrv.delTavolo(tavolo.id) : [];
+    const ritorno = ritornoModifica(tavolo);
     res.render(
       'admin/tavolo-modifica',
-      vista(req, tavolo.stato === 'approvato' ? 'tavoli' : 'approvazioni', {
+      vista(req, ritorno === '/admin/approvazioni' ? 'approvazioni' : 'tavoli', {
         titolo: 'Modifica tavolo',
         tavolo,
         pr,
         quote,
-        ritorno: tavolo.stato === 'approvato' ? '/admin/tavoli' : '/admin/approvazioni'
+        ritorno
       })
     );
   } catch (err) {
-    gestisci(err, req, res, next, '/admin/approvazioni');
+    gestisci(err, req, res, next, '/admin/tavoli');
   }
 });
 
@@ -562,8 +671,13 @@ router.post('/approvazioni/:id/modifica', async (req, res, next) => {
   try {
     const tavolo = await tavoloInAmbito(req, req.params.id);
     await tavoliSrv.modifica(req.params.id, req.body, req.session.user.nickname);
+    logAzione(
+      'tavolo_modificato',
+      { tavolo: tavolo.nome_tavolo, motivo: req.body.note_modifiche },
+      req
+    );
     req.flash('messaggio', 'Tavolo aggiornato.');
-    res.redirect(tavolo.stato === 'approvato' ? '/admin/tavoli' : '/admin/approvazioni');
+    res.redirect(ritornoModifica(tavolo));
   } catch (err) {
     gestisci(err, req, res, next, `/admin/approvazioni/${req.params.id}/modifica`);
   }
@@ -653,6 +767,11 @@ router.post('/impostazioni', async (req, res, next) => {
     const detrazioni = nomi.map((nome, i) => ({ nome, percentuale: percentuali[i] }));
     await impostazioniSrv.salvaDetrazioni(req.session.user.id, detrazioni);
 
+    logAzione(
+      'impostazioni_salvate',
+      { quotaLocale: req.body.quota_locale, numeroDetrazioni: detrazioni.length },
+      req
+    );
     req.flash('messaggio', 'Impostazioni salvate.');
     res.redirect('/admin/impostazioni');
   } catch (err) {
@@ -714,6 +833,11 @@ router.post('/pagamenti/registra', async (req, res, next) => {
       registratoDa: req.session.user.nickname
     });
 
+    logAzione(
+      'pagamento_registrato',
+      { destinatario: esito.destinatario, importo: esito.importo, residuoDopo: esito.residuoDopo },
+      req
+    );
     req.flash(
       'messaggio',
       `Registrato il pagamento di ${esito.importo.toFixed(2)} EUR a ${esito.destinatario}. ` +
@@ -727,7 +851,8 @@ router.post('/pagamenti/registra', async (req, res, next) => {
 
 router.post('/pagamenti/:id/annulla', async (req, res, next) => {
   try {
-    await pagamentiSrv.annulla(req.params.id, { tipo: 'admin', id: req.session.user.id });
+    const pagamento = await pagamentiSrv.annulla(req.params.id, { tipo: 'admin', id: req.session.user.id });
+    logAzione('pagamento_annullato', { id: pagamento.id, importo: pagamento.importo }, req);
     req.flash('messaggio', 'Pagamento annullato: il saldo torna scoperto.');
     res.redirect('/admin/pagamenti');
   } catch (err) {
@@ -918,6 +1043,11 @@ router.post('/richieste-pr/:id/approva', async (req, res, next) => {
       );
     });
 
+    logAzione(
+      'richiesta_collaboratore_approvata',
+      { nickname: richiesta.nickname, richiedente: richiesta.fk_richiedente, responsabile: padreId },
+      req
+    );
     req.flash('messaggio', `Collaboratore ${richiesta.nickname} creato.`);
     res.redirect('/admin/richieste-pr');
   } catch (err) {
@@ -941,6 +1071,11 @@ router.post('/richieste-pr/:id/rifiuta', async (req, res, next) => {
               password = ''
         WHERE id = ? AND stato = 'in_attesa'`,
       [v.noteLibere(req.body.note_admin, 500) || null, id]
+    );
+    logAzione(
+      'richiesta_collaboratore_rifiutata',
+      { nickname: richiesta.nickname, richiedente: richiesta.fk_richiedente },
+      req
     );
     req.flash('messaggio', 'Richiesta rifiutata.');
     res.redirect('/admin/richieste-pr');
@@ -972,6 +1107,7 @@ router.post('/profilo', async (req, res, next) => {
     await utenti.aggiornaAdmin(req.session.user.id, campi);
     req.session.user.nome = campi.nome;
     req.session.user.cognome = campi.cognome;
+    logAzione('profilo_aggiornato', { passwordCambiata: !!campi.password }, req);
     req.flash('messaggio', 'Profilo aggiornato.');
     res.redirect('/admin/profilo');
   } catch (err) {

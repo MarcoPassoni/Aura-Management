@@ -73,6 +73,9 @@
                   <% if (t.stato === 'rifiutato' && t.motivo_rifiuto) { %>
                     <div class="secondario">Motivo: <%= t.motivo_rifiuto %></div>
                   <% } %>
+                  <% if (t.stato === 'in_attesa' && t.revisorePressoChi) { %>
+                    <div class="secondario">In revisione presso <%= t.revisorePressoChi %></div>
+                  <% } %>
                 </td>
                 <% if (!soloMiei) { %><td><%= t.pr_nickname %></td><% } %>
                 <td class="num"><%= numero(t.numero_persone) %></td>
@@ -82,11 +85,9 @@
                 </td>
                 <td><span class="stato <%= classeStato(t.stato) %>"><%= etichettaStato(t.stato) %></span></td>
                 <td>
-                  <% if (t.stato === 'approvato') { %>
-                    <a href="/pr/tavoli/<%= t.id %>/dettaglio" class="pulsante pulsante--piccolo">
-                      Provvigione
-                    </a>
-                  <% } %>
+                  <a href="/pr/tavoli/<%= t.id %>/dettaglio" class="pulsante pulsante--piccolo">
+                    <%= t.stato === 'approvato' ? 'Provvigione' : 'Dettaglio' %>
+                  </a>
                 </td>
               </tr>
             <% }); %>

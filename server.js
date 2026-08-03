@@ -12,9 +12,11 @@ const favicon = require('serve-favicon');
 const expressLayouts = require('express-ejs-layouts');
 
 const { initSchema } = require('./models/schema');
-const { chiudi: chiudiDatabase } = require('./models/db');
+const { chiudi: chiudiDatabase, dbPath } = require('./models/db');
 const { csrf } = require('./middleware/csrf');
 const { logger } = require('./utils/secure-logger');
+const { NOME_COOKIE, SESSIONE_IDLE_MS, SESSIONE_MAX_MS } = require('./utils/sessione');
+const avvio = require('./utils/avvio');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,7 +26,9 @@ const IN_PRODUZIONE = process.env.NODE_ENV === 'production';
 // aveva un valore di ripiego scritto nel codice, quindi pubblico.
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET && IN_PRODUZIONE) {
-  console.error('SESSION_SECRET non impostato: impossibile avviare in produzione.');
+  logger.error('SESSION_SECRET non impostato: impossibile avviare in produzione.', {
+    categoria: 'sistema'
+  });
   process.exit(1);
 }
 
@@ -86,12 +90,18 @@ app.use(express.static(path.join(__dirname, 'public'), { maxAge: IN_PRODUZIONE ?
 // Le sessioni vivono su disco: con il MemoryStore predefinito ogni riavvio del
 // server disconnetteva tutti gli utenti collegati, e la memoria cresceva senza
 // mai liberarsi.
+//
+// `svuotaAllAvvio` e' invece una scelta deliberata, solo in produzione: ogni
+// riavvio del processo (un deploy, un crash recuperato) invalida tutte le
+// sessioni esistenti, cosi' nessuno resta collegato a tempo indeterminato
+// senza che il server "se lo ricordi" attivamente. In sviluppo resterebbe solo
+// un fastidio, perche' nodemon riavvia il processo a ogni file salvato.
 const SqliteStore = require('./services/session-store')(session);
 
 app.use(
   session({
-    name: 'aura.sid',
-    store: new SqliteStore(),
+    name: NOME_COOKIE,
+    store: new SqliteStore({ svuotaAllAvvio: IN_PRODUZIONE }),
     secret: SESSION_SECRET || 'segreto-di-sviluppo-non-usare-in-produzione',
     resave: false,
     saveUninitialized: false,
@@ -100,7 +110,7 @@ app.use(
       secure: IN_PRODUZIONE,
       httpOnly: true,
       sameSite: 'lax',
-      maxAge: 8 * 60 * 60 * 1000 // 8 ore
+      maxAge: SESSIONE_IDLE_MS
     }
   })
 );
@@ -109,6 +119,39 @@ app.use(flash());
 // Il controllo anti-CSRF sta subito dopo la sessione e prima di ogni route:
 // nessuna operazione puo' saltarlo per dimenticanza.
 app.use(csrf);
+
+// ------------------------------------------------------------- log accessi
+//
+// Una riga per ogni richiesta gestita: metodo, percorso, esito, tempo di
+// risposta e chi era collegato (se qualcuno lo era). E' il primo posto da
+// guardare per capire cosa sta facendo davvero l'applicazione in un dato
+// momento, ed e' quello che rende utile un log "dalla A alla Z" invece che
+// solo un elenco di errori.
+//
+// Sta dopo la sessione (serve sapere chi e' collegato) e prima delle route,
+// cosi' cattura ogni richiesta dinamica. Le richieste ai file statici sono gia'
+// state gestite sopra e non arrivano qui: loggarle avrebbe solo aggiunto
+// rumore senza informazioni utili.
+app.use((req, res, next) => {
+  const inizio = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durataMs = Number(process.hrtime.bigint() - inizio) / 1e6;
+    const utente =
+      req.session && req.session.user
+        ? `${req.session.user.ruolo}:${req.session.user.nickname}`
+        : 'anonimo';
+    logger.info('richiesta gestita', {
+      categoria: 'http',
+      metodo: req.method,
+      percorso: req.originalUrl,
+      stato: res.statusCode,
+      durataMs: Math.round(durataMs),
+      utente,
+      ip: req.ip
+    });
+  });
+  next();
+});
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -154,7 +197,15 @@ app.use((req, res) => {
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   const validazione = err && err.name === 'ErroreValidazione';
-  if (!validazione) logger.error(err.message, { stack: err.stack, url: req.originalUrl });
+  if (!validazione) {
+    logger.error(err.message, {
+      categoria: 'errore',
+      stack: err.stack,
+      metodo: req.method,
+      percorso: req.originalUrl,
+      utente: req.session && req.session.user ? req.session.user.nickname : 'anonimo'
+    });
+  }
 
   const stato = validazione ? 400 : 500;
   const messaggio = validazione
@@ -177,17 +228,29 @@ app.use((err, req, res, next) => {
   });
 });
 
+logger.info('Avvio del processo.', {
+  categoria: 'sistema',
+  ambiente: process.env.NODE_ENV || 'sviluppo',
+  avviatoIl: avvio.avviatoIl.toISOString(),
+  databasePath: dbPath,
+  sessioneIdleOre: Math.round(SESSIONE_IDLE_MS / 3_600_000),
+  sessioneMassimaOre: Math.round(SESSIONE_MAX_MS / 3_600_000)
+});
+
 (async () => {
   try {
     await initSchema();
   } catch (err) {
-    console.error('Impossibile inizializzare il database:', err.message);
+    logger.error('Impossibile inizializzare il database.', {
+      categoria: 'sistema',
+      errore: err.message,
+      stack: err.stack
+    });
     process.exit(1);
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Aura Manager in ascolto su http://localhost:${PORT}`);
-    console.log(`Ambiente: ${process.env.NODE_ENV || 'sviluppo'}`);
+    logger.info(`In ascolto su http://localhost:${PORT}`, { categoria: 'sistema', porta: PORT });
   });
 
   // Chiusura ordinata: si smette di accettare richieste, si lasciano finire
@@ -197,19 +260,47 @@ app.use((err, req, res, next) => {
   const chiudi = (segnale) => {
     if (inChiusura) return;
     inChiusura = true;
-    console.log(`\n${segnale} ricevuto, chiusura in corso.`);
+    logger.info('Segnale di arresto ricevuto, chiusura in corso.', {
+      categoria: 'sistema',
+      segnale
+    });
     server.close(async () => {
       try {
         await chiudiDatabase();
+        logger.info('Database chiuso correttamente. Arresto completato.', { categoria: 'sistema' });
       } catch (err) {
-        console.error('Errore nella chiusura del database:', err.message);
+        logger.error('Errore nella chiusura del database.', {
+          categoria: 'sistema',
+          errore: err.message
+        });
       }
       process.exit(0);
     });
-    setTimeout(() => process.exit(1), 8000).unref();
+    setTimeout(() => {
+      logger.error('Chiusura forzata: le connessioni non si sono liberate in tempo.', {
+        categoria: 'sistema'
+      });
+      process.exit(1);
+    }, 8000).unref();
   };
   process.on('SIGTERM', () => chiudi('SIGTERM'));
   process.on('SIGINT', () => chiudi('SIGINT'));
+
+  process.on('unhandledRejection', (err) => {
+    logger.error('Promise rifiutata senza gestione.', {
+      categoria: 'sistema',
+      errore: err && err.message,
+      stack: err && err.stack
+    });
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error('Eccezione non gestita: il processo si ferma.', {
+      categoria: 'sistema',
+      errore: err.message,
+      stack: err.stack
+    });
+    process.exit(1);
+  });
 })();
 
 module.exports = app;

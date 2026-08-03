@@ -64,18 +64,18 @@ async function catenaDi(prId, tx = funzioniGlobali) {
   }
 
   const righe = await tx.all(
-    `WITH RECURSIVE catena(id, fk_padre, padre_tipo, percentuale, nickname, livello) AS (
+    `WITH RECURSIVE catena(id, fk_padre, padre_tipo, percentuale, nickname, attivo, livello) AS (
        SELECT id, fk_padre, COALESCE(padre_tipo, 'pr'),
-              COALESCE(percentuale_provvigione, 0), nickname, 0
+              COALESCE(percentuale_provvigione, 0), nickname, COALESCE(attivo, 1), 0
          FROM pr WHERE id = ?
        UNION ALL
        SELECT p.id, p.fk_padre, COALESCE(p.padre_tipo, 'pr'),
-              COALESCE(p.percentuale_provvigione, 0), p.nickname, c.livello + 1
+              COALESCE(p.percentuale_provvigione, 0), p.nickname, COALESCE(p.attivo, 1), c.livello + 1
          FROM pr p
          JOIN catena c ON p.id = c.fk_padre
         WHERE c.padre_tipo = 'pr' AND c.livello < ${PROFONDITA_MASSIMA}
      )
-     SELECT id, fk_padre, padre_tipo, percentuale, nickname, livello
+     SELECT id, fk_padre, padre_tipo, percentuale, nickname, attivo, livello
        FROM catena ORDER BY livello`,
     [id]
   );
@@ -124,6 +124,17 @@ async function catenaDi(prId, tx = funzioniGlobali) {
   // collaboratore ha una percentuale piu' alta del proprio responsabile, il
   // responsabile ci rimette su ogni tavolo. Non blocchiamo qui - lo decide chi
   // chiama - ma l'anomalia viene sempre segnalata.
+  return { righe, adminId, incoerenze: calcolaIncoerenze(righe) };
+}
+
+/**
+ * Individua le coppie livello/livello-sotto la cui percentuale e' incoerente
+ * (il livello superiore guadagna meno di chi ha sotto). Separata da
+ * `catenaDi` perche' va rieseguita anche dopo aver applicato le percentuali
+ * decise per un tavolo specifico (vedi `congela`), non solo su quelle
+ * correnti dei profili.
+ */
+function calcolaIncoerenze(righe) {
   const incoerenze = [];
   for (let i = 1; i < righe.length; i++) {
     if (righe[i].percentuale < righe[i - 1].percentuale) {
@@ -141,8 +152,7 @@ async function catenaDi(prId, tx = funzioniGlobali) {
       });
     }
   }
-
-  return { righe, adminId, incoerenze };
+  return incoerenze;
 }
 
 /**
@@ -200,9 +210,28 @@ async function scrivi(tavoloId, righe, tx = funzioniGlobali) {
  * @param {boolean} opzioni.bloccaIncoerenze  se true (approvazione manuale)
  *   rifiuta di congelare una catena con percentuali incoerenti, invece di
  *   fissare numeri che nessuno sarebbe in grado di spiegare.
+ * @param {Map<number,number>} opzioni.sovrascritture  percentuali decise per
+ *   questo specifico tavolo (services/revisioni.js), una per pr_id, che
+ *   sostituiscono quella corrente del profilo per il solo calcolo di questo
+ *   congelamento. Chi non compare nella mappa mantiene la propria percentuale
+ *   corrente (caso di un capofila che vende direttamente, senza nessuna
+ *   revisione intermedia).
  */
-async function congela(tavoloId, prId, tx = funzioniGlobali, { bloccaIncoerenze = true } = {}) {
-  const catena = await catenaDi(prId, tx);
+async function congela(
+  tavoloId,
+  prId,
+  tx = funzioniGlobali,
+  { bloccaIncoerenze = true, sovrascritture = null } = {}
+) {
+  const grezza = await catenaDi(prId, tx);
+
+  const righe =
+    sovrascritture && sovrascritture.size
+      ? grezza.righe.map((r) =>
+          sovrascritture.has(r.id) ? { ...r, percentuale: Number(sovrascritture.get(r.id)) } : r
+        )
+      : grezza.righe;
+  const catena = { ...grezza, righe, incoerenze: calcolaIncoerenze(righe) };
 
   if (bloccaIncoerenze && catena.incoerenze.length) {
     throw new ErroreValidazione(
@@ -211,9 +240,9 @@ async function congela(tavoloId, prId, tx = funzioniGlobali, { bloccaIncoerenze 
     );
   }
 
-  const righe = righeQuota(tavoloId, catena);
-  await scrivi(tavoloId, righe, tx);
-  return { righe, catena };
+  const righeCongelate = righeQuota(tavoloId, catena);
+  await scrivi(tavoloId, righeCongelate, tx);
+  return { righe: righeCongelate, catena };
 }
 
 /** Rimuove le quote di un tavolo (riapertura di una decisione). */

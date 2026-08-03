@@ -12,7 +12,10 @@
     <div class="pannello">
       <div class="pannello__testa">
         <div>
-          <h2><%= r.nome %> <%= r.cognome %></h2>
+          <%# Nome e cognome vengono rimossi dal database non appena la richiesta
+              e' decisa (restano solo, cifrati, nel profilo del collaboratore):
+              a decisione presa si mostra il nickname, che invece resta sempre. %>
+          <h2><% if (r.stato === 'in_attesa') { %><%= r.nome %> <%= r.cognome %><% } else { %><%= r.nickname %><% } %></h2>
           <div class="secondario">
             Proposto da <%= r.richiedente_nickname || 'collaboratore rimosso' %>
             il <%= dataOraIt(r.data_richiesta) %>
@@ -29,10 +32,12 @@
             <div class="scheda__etichetta">Nickname</div>
             <div class="principale"><%= r.nickname %></div>
           </div>
-          <div>
-            <div class="scheda__etichetta">Telefono</div>
-            <div class="principale"><%= r.numero_telefono %></div>
-          </div>
+          <% if (r.stato === 'in_attesa') { %>
+            <div>
+              <div class="scheda__etichetta">Telefono</div>
+              <div class="principale"><%= r.numero_telefono %></div>
+            </div>
+          <% } %>
           <div>
             <div class="scheda__etichetta">Percentuale richiesta</div>
             <div class="principale"><%= percentuale(r.percentuale_provvigione) %></div>

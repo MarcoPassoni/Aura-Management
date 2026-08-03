@@ -11,8 +11,9 @@ const router = express.Router();
 
 const { findByNickname, verifyPassword } = require('../services/users');
 const { loginLimiter } = require('../utils/rate-limiter');
-const { logSecurityEvent } = require('../utils/secure-logger');
+const { logSecurityEvent, logAzione } = require('../utils/secure-logger');
 const { rinnova } = require('../middleware/csrf');
+const { NOME_COOKIE } = require('../utils/sessione');
 
 const MESSAGGIO_CREDENZIALI = 'Nickname o password non corretti.';
 
@@ -24,7 +25,10 @@ router.get('/login', (req, res) => {
     layout: false,
     titolo: 'Accedi',
     errore: req.flash('errore')[0] || null,
-    messaggio: req.flash('messaggio')[0] || null
+    messaggio: req.flash('messaggio')[0] || null,
+    // Distingue "non hai mai fatto login" da "la sessione precedente non c'e'
+    // piu'": vedi middleware/auth.js per dove viene deciso.
+    sessioneScaduta: req.query.motivo === 'scaduta'
   });
 });
 
@@ -66,6 +70,9 @@ router.post('/login', loginLimiter, async (req, res, next) => {
         nome: utente.nome,
         cognome: utente.cognome
       };
+      // Istante del login: e' da qui che middleware/auth.js misura la durata
+      // massima assoluta della sessione, indipendente da quanto viene usata.
+      req.session.creataIl = Date.now();
       registraTentativo(req, nickname, true);
       req.session.save((err2) => {
         if (err2) return next(err2);
@@ -81,8 +88,10 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 // caricare /logout (per esempio con un'immagine in una pagina qualunque) per
 // buttare fuori l'utente collegato.
 router.post('/logout', (req, res) => {
+  const utente = req.session && req.session.user;
+  if (utente) logAzione('logout', { nickname: utente.nickname }, req);
   req.session.destroy(() => {
-    res.clearCookie('aura.sid');
+    res.clearCookie(NOME_COOKIE);
     res.redirect('/login');
   });
 });

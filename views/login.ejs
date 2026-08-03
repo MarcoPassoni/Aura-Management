@@ -16,6 +16,13 @@
         <div class="accesso__sotto">Gestione staff e prenotazioni</div>
       </div>
 
+      <% if (sessioneScaduta && !errore) { %>
+        <div class="avviso avviso--informativo" role="status">
+          La sessione precedente non e' piu' valida: puo' essere scaduta per inattivita',
+          essere stata invalidata da un riavvio del server, oppure hai fatto l'accesso da
+          un altro dispositivo. Accedi di nuovo.
+        </div>
+      <% } %>
       <% if (errore) { %>
         <div class="avviso avviso--errore" role="alert"><%= errore %></div>
       <% } %>

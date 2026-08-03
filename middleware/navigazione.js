@@ -11,6 +11,7 @@
 
 const { get } = require('../services/db-helpers');
 const tavoliSrv = require('../services/tavoli');
+const revisioni = require('../services/revisioni');
 const diagnostica = require('../services/diagnostica');
 
 async function datiNavigazione(req, res, next) {
@@ -31,8 +32,11 @@ async function datiNavigazione(req, res, next) {
           )
         : null;
 
+      // Non tutte le richieste in_attesa spettano gia' all'amministrazione:
+      // molte possono essere ancora ferme presso un collaboratore intermedio
+      // (services/revisioni.js). Il badge conta solo quelle davvero pronte.
       const [approvazioni, verifica] = await Promise.all([
-        tavoliSrv.contaInAttesa(prIds),
+        revisioni.contaPerAdmin(prIds),
         diagnostica.contaBloccanti()
       ]);
 
@@ -44,11 +48,13 @@ async function datiNavigazione(req, res, next) {
         verifica
       };
     } else {
-      // Per un collaboratore l'unico numero che cambia da solo e' quello delle
-      // proprie prenotazioni ancora da valutare.
-      res.locals.badge = {
-        tavoli: await tavoliSrv.contaInAttesa([utente.id])
-      };
+      // Per un collaboratore contano sia le proprie prenotazioni ancora da
+      // valutare, sia le richieste altrui in attesa della sua revisione.
+      const [tavoli, revisioniAttese] = await Promise.all([
+        tavoliSrv.contaInAttesa([utente.id]),
+        revisioni.contaCodaPerPr(utente.id)
+      ]);
+      res.locals.badge = { tavoli, revisioni: revisioniAttese };
     }
 
     return next();

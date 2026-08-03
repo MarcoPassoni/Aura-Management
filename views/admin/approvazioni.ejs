@@ -1,6 +1,6 @@
 <% if (!elenco.length) { %>
   <div class="pannello">
-    <div class="vuoto">Nessuna richiesta in attesa. Tutto valutato.</div>
+    <div class="vuoto">Nessuna richiesta pronta per l'approvazione.</div>
   </div>
 <% } else { %>
 
@@ -14,7 +14,7 @@
       <div class="scheda__valore"><%= euro(totaleImponibile) %></div>
     </div>
     <div class="scheda">
-      <div class="scheda__etichetta">Costo se approvi tutto</div>
+      <div class="scheda__etichetta">Costo se approvi tutto cosi' com'e'</div>
       <div class="scheda__valore"><%= euro(totaleCosto) %></div>
       <div class="scheda__nota">Provvigioni dell'intera catena</div>
     </div>
@@ -33,24 +33,28 @@
 
   <div class="avviso avviso--informativo">
     <div>
-      Un tavolo genera provvigioni solo dopo l'approvazione. Nel momento in cui approvi,
-      le percentuali di tutta la catena vengono <strong>congelate su questo tavolo</strong>:
-      da li' in poi cambiarle non tocchera' piu' questo importo.
-      Il rifiuto non cancella la richiesta, resta nello storico con il motivo.
+      Queste richieste sono gia' passate da ogni collaboratore sopra il venditore: ognuno ha
+      potuto confermare o correggere la percentuale del proprio sottoposto diretto su questo
+      tavolo, ed eventualmente lasciarti un commento. A te resta l'ultimo passaggio: decidere
+      (o confermare) la percentuale del capofila e approvare. Nel momento in cui approvi, tutte
+      le percentuali della catena vengono <strong>congelate su questo tavolo</strong>: da li' in
+      poi cambiarle non tocchera' piu' questo importo. Il rifiuto non cancella la richiesta,
+      resta nello storico con il motivo.
     </div>
   </div>
 
   <% elenco.forEach(function (t) { %>
+    <% const r = t.revisione; const ultimo = r.righe.length - 1; %>
     <div class="pannello">
       <div class="pannello__testa">
         <div>
           <h2><%= t.nome_tavolo %></h2>
           <div class="secondario">
-            <%= dataIt(t.data) %> &middot; richiesto da <%= t.pr_nickname %>
-            (<%= percentuale(t.percentuale_provvigione) %>)
+            <%= dataIt(t.data) %> &middot; venduto da <%= t.pr_nickname %>
+            (<%= percentuale(t.percentuale_provvigione) %> sul suo profilo)
           </div>
         </div>
-        <span class="stato stato--attesa">In attesa</span>
+        <span class="stato stato--attesa">Pronto per te</span>
       </div>
 
       <div class="pannello__corpo">
@@ -68,36 +72,29 @@
           </div>
           <div>
             <div class="scheda__etichetta">Costo provvigioni</div>
-            <div class="principale <%= t.stima.ok ? '' : 'num--negativo' %>">
-              <%= t.stima.ok ? euro(t.stima.costoTotale) : 'non calcolabile' %>
+            <div class="principale <%= r.ok ? '' : 'num--negativo' %>">
+              <%= r.ok ? euro(r.costoTotale) : 'non calcolabile' %>
             </div>
-            <div class="secondario">se approvato adesso</div>
+            <div class="secondario">con la percentuale del capofila suggerita</div>
           </div>
           <div>
             <div class="scheda__etichetta">Resta all'amministrazione</div>
-            <div class="principale <%= segno(t.imponibile - t.stima.costoTotale) %>">
-              <%= t.stima.ok ? euro(t.imponibile - t.stima.costoTotale) : '-' %>
+            <div class="principale <%= r.ok ? segno(t.imponibile - r.costoTotale) : '' %>">
+              <%= r.ok ? euro(t.imponibile - r.costoTotale) : '-' %>
             </div>
             <div class="secondario">prima della quota locale</div>
           </div>
         </div>
 
-        <% if (!t.stima.ok) { %>
+        <% if (!r.ok) { %>
           <div class="avviso avviso--errore" role="alert">
             <div>
-              <strong>Non approvabile.</strong> <%= t.stima.motivo %>
-            </div>
-          </div>
-        <% } else if (t.stima.incoerenze.length) { %>
-          <div class="avviso avviso--errore" role="alert">
-            <div>
-              <strong>Non approvabile.</strong> <%= t.stima.incoerenze[0].messaggio %>
-              Correggi le percentuali dalla pagina <a href="/admin/staff">Staff</a>.
+              <strong>Non approvabile.</strong> <%= r.motivo %>
             </div>
           </div>
         <% } else { %>
-          <details class="dettagli">
-            <summary>Come verrebbe ripartito</summary>
+          <details class="dettagli" open>
+            <summary>Storico della revisione</summary>
             <div class="tabella-contenitore">
               <table>
                 <thead>
@@ -106,29 +103,48 @@
                     <th scope="col" class="num">Percentuale</th>
                     <th scope="col" class="num">Gli spetta</th>
                     <th scope="col" class="num">Gli resta</th>
+                    <th scope="col">Deciso da</th>
+                    <th scope="col">Commento</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <%# Dall'amministrazione verso il basso: e' l'ordine in cui i
-                      soldi scendono lungo la catena. %>
-                  <% t.stima.voci.slice().reverse().forEach(function (q) { %>
-                    <tr>
-                      <td class="<%= rientro(t.stima.voci.length - 1 - q.livello) %>">
+                  <%# Dal capofila verso il basso: e' l'ordine in cui i soldi scendono. %>
+                  <% r.righe.slice().reverse().forEach(function (q) { %>
+                    <tr<%= q.livello === ultimo ? ' class="riga--attenuata"' : '' %>>
+                      <td class="<%= rientro(ultimo - q.livello) %>">
                         <span class="principale"><%= q.nickname %></span>
-                        <% if (q.livello === 0) { %>
-                          <span class="secondario">venditore</span>
+                        <% if (q.livello === 0) { %><div class="secondario">venditore</div><% } %>
+                        <% if (q.livello === ultimo) { %><div class="secondario">capofila, decidi tu qui sotto</div><% } %>
+                      </td>
+                      <td class="num">
+                        <% if (q.passaggio && q.passaggio.percentuale_decisa !== q.passaggio.percentuale_suggerita) { %>
+                          <span class="pastiglia" title="Consigliata: <%= percentuale(q.passaggio.percentuale_suggerita) %>">
+                            <%= percentuale(q.percentuale) %>
+                          </span>
+                        <% } else { %>
+                          <%= percentuale(q.percentuale) %>
                         <% } %>
                       </td>
-                      <td class="num"><%= percentuale(q.percentuale) %></td>
                       <td class="num"><%= euro(q.lordo) %></td>
                       <td class="num principale"><%= euro(q.netto) %></td>
+                      <td class="secondario">
+                        <% if (q.passaggio) { %>
+                          <%= q.passaggio.revisore_nickname %>
+                        <% } else { %>
+                          in attesa della tua decisione
+                        <% } %>
+                      </td>
+                      <td class="secondario">
+                        <%= q.passaggio && q.passaggio.commento ? q.passaggio.commento : '-' %>
+                      </td>
                     </tr>
                   <% }); %>
                 </tbody>
                 <tfoot>
                   <tr>
                     <th scope="row" colspan="3">Totale a carico dell'amministrazione</th>
-                    <td class="num principale"><%= euro(t.stima.costoTotale) %></td>
+                    <td class="num principale"><%= euro(r.costoTotale) %></td>
+                    <td colspan="2"></td>
                   </tr>
                 </tfoot>
               </table>
@@ -157,17 +173,27 @@
           </div>
         <% } %>
 
-        <div class="azioni">
-          <form method="post" action="/admin/approvazioni/<%= t.id %>/approva">
+        <% if (r.ok) { %>
+          <form method="post" action="/admin/approvazioni/<%= t.id %>/approva" class="filtri">
             <%- include('../partials/csrf') %>
-            <button type="submit" class="pulsante pulsante--primario"
-                    <%= t.stima.ok && !t.stima.incoerenze.length ? '' : 'disabled' %>>
-              Approva
-            </button>
+            <div class="campo">
+              <label class="campo__etichetta" for="cap-<%= t.id %>">
+                Percentuale del capofila (<%= r.righe[ultimo].nickname %>)
+              </label>
+              <input type="number" id="cap-<%= t.id %>" name="percentuale_capofila"
+                     min="<%= ultimo > 0 ? r.righe[ultimo - 1].percentuale : 0 %>" max="100" step="0.01"
+                     inputmode="decimal" value="<%= r.righe[ultimo].percentuale %>">
+              <span class="campo__aiuto">
+                Consigliata <%= percentuale(r.righe[ultimo].percentualeProfilo) %> (il suo profilo).
+                Solo per questo tavolo.
+              </span>
+            </div>
+            <button type="submit" class="pulsante pulsante--primario">Approva</button>
           </form>
+        <% } %>
 
+        <div class="azioni">
           <a href="/admin/approvazioni/<%= t.id %>/modifica" class="pulsante">Correggi i dati</a>
-
           <button type="button" class="pulsante pulsante--pericolo"
                   data-apre="rifiuta-<%= t.id %>" aria-expanded="false">Rifiuta</button>
         </div>
@@ -179,7 +205,7 @@
             <label class="campo__etichetta" for="motivo-<%= t.id %>">Motivo del rifiuto</label>
             <input type="text" id="motivo-<%= t.id %>" name="motivo" maxlength="500"
                    placeholder="Es. data non disponibile" required>
-            <span class="campo__aiuto">Il collaboratore potra' leggerlo nello storico.</span>
+            <span class="campo__aiuto">Il venditore potra' leggerlo nello storico.</span>
           </div>
           <div class="azioni">
             <button type="submit" class="pulsante pulsante--pericolo">Conferma rifiuto</button>

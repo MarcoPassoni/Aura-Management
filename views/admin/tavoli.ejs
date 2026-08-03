@@ -82,6 +82,11 @@
                   <% if (t.stato === 'rifiutato' && t.motivo_rifiuto) { %>
                     <div class="secondario">Motivo: <%= t.motivo_rifiuto %></div>
                   <% } %>
+                  <% if (t.stato === 'in_attesa' && t.revisione_tipo === 'pr') { %>
+                    <div class="secondario">
+                      In revisione presso <%= t.revisorePressoChi || 'un collaboratore' %>
+                    </div>
+                  <% } %>
                   <% if (t.escluso) { %>
                     <div class="secondario num--negativo">
                       Escluso dai calcoli: catena di provvigioni non ricostruibile.
@@ -106,9 +111,9 @@
                 <td>
                   <div class="azioni">
                     <a href="/admin/tavoli/<%= t.id %>/dettaglio" class="pulsante pulsante--piccolo">Dettaglio</a>
-                    <% if (t.stato === 'in_attesa') { %>
+                    <% if (t.stato === 'in_attesa' && t.revisione_tipo === 'admin') { %>
                       <a href="/admin/approvazioni" class="pulsante pulsante--piccolo">Valuta</a>
-                    <% } else { %>
+                    <% } else if (t.stato !== 'in_attesa') { %>
                       <button type="button" class="pulsante pulsante--piccolo"
                               data-apre="incasso-<%= t.id %>" aria-expanded="false">Incasso</button>
                     <% } %>

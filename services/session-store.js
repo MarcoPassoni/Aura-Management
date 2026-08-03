@@ -3,9 +3,23 @@
 //
 // Con il MemoryStore predefinito di express-session ogni riavvio del server
 // disconnetteva tutti gli utenti collegati e la memoria occupata dalle sessioni
-// scadute non veniva mai liberata.
+// scadute non veniva mai liberata. Restare su disco risolve entrambi i
+// problemi: le sessioni sopravvivono a un riavvio e vengono ripulite quando
+// scadono.
+//
+// Sopravvivere a un riavvio pero' non e' sempre quello che si vuole: su
+// un server di produzione, ogni riavvio del processo (un deploy, un crash
+// recuperato, un intervento manuale) e' un momento naturale in cui forzare
+// tutti a ripresentare le credenziali, invece di lasciare sessioni aperte a
+// tempo indeterminato che nessuno ricorda piu' di avere. Per questo lo store
+// accetta l'opzione `svuotaAllAvvio`: quando attiva, la tabella delle sessioni
+// viene azzerata una volta, al momento della creazione dello store. La
+// decisione se attivarla o no (tipicamente: si in produzione, no in sviluppo,
+// dove disconnettere a ogni riavvio di nodemon sarebbe solo un fastidio)
+// spetta a chi crea lo store, in server.js.
 
 const { run, get, all } = require('./db-helpers');
+const { logger } = require('../utils/secure-logger');
 
 module.exports = function creaSessionStore(session) {
   const Store = session.Store;
@@ -14,6 +28,7 @@ module.exports = function creaSessionStore(session) {
     constructor(opzioni = {}) {
       super(opzioni);
       this.tabella = 'sessioni';
+      this.svuotaAllAvvio = !!opzioni.svuotaAllAvvio;
       // Ogni tanto si ripuliscono le sessioni scadute: senza questa pulizia la
       // tabella cresce indefinitamente.
       this.intervalloPulizia = opzioni.intervalloPulizia || 60 * 60 * 1000;
@@ -33,7 +48,16 @@ module.exports = function creaSessionStore(session) {
         dati TEXT NOT NULL
       )`);
       await run(`CREATE INDEX IF NOT EXISTS idx_sessioni_scadenza ON ${this.tabella}(scadenza)`);
-      await this.pulisci();
+
+      if (this.svuotaAllAvvio) {
+        const rimosse = await this.svuotaTutto();
+        logger.info(`Sessioni precedenti invalidate: nuovo avvio del processo.`, {
+          categoria: 'sessioni',
+          sessioniRimosse: rimosse
+        });
+      } else {
+        await this.pulisci();
+      }
     }
 
     _scadenza(sess) {
@@ -132,6 +156,13 @@ module.exports = function creaSessionStore(session) {
 
     pulisci() {
       return run(`DELETE FROM ${this.tabella} WHERE scadenza < ?`, [Date.now()]);
+    }
+
+    /** Rimuove TUTTE le sessioni, scadute o no. Restituisce quante ne ha rimosse. */
+    async svuotaTutto() {
+      const prima = await get(`SELECT COUNT(*) AS n FROM ${this.tabella}`);
+      await run(`DELETE FROM ${this.tabella}`);
+      return prima ? prima.n : 0;
     }
   }
 

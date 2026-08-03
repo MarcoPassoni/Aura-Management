@@ -1,0 +1,120 @@
+<div class="avviso avviso--informativo">
+  <div>
+    Queste sono richieste di tavolo di chi dipende direttamente da te (o di chi dipende da
+    loro, gia' passate dal livello sotto). Per ciascuna decidi la percentuale che spetta al
+    tuo sottoposto diretto su <strong>questo tavolo specifico</strong>: di norma quella del
+    suo profilo, ma puoi cambiarla solo per questa volta. Puoi lasciare un commento: lo
+    vedra' solo chi sta sopra di te, mai chi sta sotto. Poi la richiesta sale di un livello.
+  </div>
+</div>
+
+<% if (!elenco.length) { %>
+  <div class="pannello">
+    <div class="vuoto">Nessuna richiesta in attesa della tua revisione.</div>
+  </div>
+<% } else { %>
+  <% elenco.forEach(function (voce) { %>
+    <%
+      const t = voce.tavolo;
+      const d = voce.daDecidere;
+      const gia = voce.situazione.righe.filter(function (r) { return r.livello < d.livello; });
+      const mioTetto = voce.situazione.righe[d.livello + 1].percentualeProfilo;
+      const mioPavimento = gia.length ? gia[gia.length - 1].percentuale : 0;
+    %>
+    <div class="pannello">
+      <div class="pannello__testa">
+        <div>
+          <h2><%= t.nome_tavolo %></h2>
+          <div class="secondario">
+            <%= dataIt(t.data) %> &middot; venduto da <%= t.venditore_nickname %>
+            <% if (t.venditore_nickname !== d.nickname) { %>
+              &middot; stai decidendo per <%= d.nickname %>
+            <% } %>
+          </div>
+        </div>
+        <span class="stato stato--attesa">Tocca a te</span>
+      </div>
+
+      <div class="pannello__corpo">
+        <div class="griglia griglia--compatta">
+          <div>
+            <div class="scheda__etichetta">Persone</div>
+            <div class="principale"><%= numero(t.numero_persone) %></div>
+          </div>
+          <div>
+            <div class="scheda__etichetta">Imponibile</div>
+            <div class="principale"><%= euro(voce.situazione.imponibile) %></div>
+          </div>
+          <div>
+            <div class="scheda__etichetta">Percentuale consigliata per <%= d.nickname %></div>
+            <div class="principale"><%= percentuale(d.percentualeProfilo) %></div>
+            <div class="secondario">quella del suo profilo</div>
+          </div>
+        </div>
+
+        <% if (gia.length) { %>
+          <details class="dettagli">
+            <summary>Cosa e' gia' stato deciso sotto di te</summary>
+            <div class="tabella-contenitore">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Chi</th>
+                    <th scope="col" class="num">Percentuale decisa</th>
+                    <th scope="col">Deciso da</th>
+                    <th scope="col">Commento</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% gia.slice().reverse().forEach(function (r) { %>
+                    <tr>
+                      <td class="principale"><%= r.nickname %></td>
+                      <td class="num"><%= percentuale(r.percentuale) %></td>
+                      <td class="secondario"><%= r.passaggio.revisore_nickname %></td>
+                      <td class="secondario"><%= r.passaggio.commento || '-' %></td>
+                    </tr>
+                  <% }); %>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        <% } %>
+
+        <% if (t.note_tavolo) { %>
+          <div class="campo campo--staccato">
+            <span class="campo__etichetta">Note del venditore</span>
+            <div class="secondario"><%= t.note_tavolo %></div>
+          </div>
+        <% } %>
+
+        <form method="post" action="/pr/revisioni/<%= t.id %>/inoltra" class="modulo">
+          <%- include('../partials/csrf') %>
+          <div class="modulo modulo--due">
+            <div class="campo">
+              <label class="campo__etichetta" for="perc-<%= t.id %>">
+                Percentuale per <%= d.nickname %> su questo tavolo
+              </label>
+              <input type="number" id="perc-<%= t.id %>" name="percentuale" required
+                     min="<%= mioPavimento %>" max="<%= mioTetto %>" step="0.01" inputmode="decimal"
+                     value="<%= d.percentualeProfilo %>">
+              <span class="campo__aiuto">
+                Consigliata <%= percentuale(d.percentualeProfilo) %> (il suo profilo).
+                Puo' andare da <%= percentuale(mioPavimento) %>
+                <% if (mioPavimento > 0) { %>(gia' deciso piu' sotto)<% } %>
+                a <%= percentuale(mioTetto) %> (la tua percentuale attuale).
+              </span>
+            </div>
+            <div class="campo">
+              <label class="campo__etichetta" for="comm-<%= t.id %>">Commento (facoltativo)</label>
+              <input type="text" id="comm-<%= t.id %>" name="commento" maxlength="1000"
+                     placeholder="Visibile solo a chi sta sopra di te">
+            </div>
+          </div>
+          <div class="azioni">
+            <button type="submit" class="pulsante pulsante--primario">Conferma e inoltra</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  <% }); %>
+<% } %>

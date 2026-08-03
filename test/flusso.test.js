@@ -11,6 +11,7 @@ const tavoli = require('../services/tavoli');
 const pagamenti = require('../services/pagamenti');
 const utenti = require('../services/users');
 const quote = require('../services/quote');
+const revisioni = require('../services/revisioni');
 const { computeCommissions } = require('../services/commissions');
 
 const { check, respinta, sezione, riepilogo } = aiuto.creaVerificatore();
@@ -63,7 +64,7 @@ function fraGiorni(quanti) {
     check('Password corretta accettata', true, await utenti.verifyPassword('PasswordSicura1', trovato.password));
     check('Password sbagliata respinta', false, await utenti.verifyPassword('sbagliata', trovato.password));
 
-    sezione('Richiesta e approvazione di un tavolo');
+    sezione('Richiesta, revisione di Sara, e approvazione di un tavolo');
     const tavoloId = await tavoli.creaRichiesta(marcoId, {
       data: fraGiorni(7),
       nome_tavolo: 'Sala 1 - 3',
@@ -74,15 +75,39 @@ function fraGiorni(quanti) {
     let t = await tavoli.getTavolo(tavoloId);
     check('Il tavolo nasce in attesa', 'in_attesa', t.stato);
     check('La base di calcolo e il preventivo', 'preventivo', t.baseCalcolo);
+    // Marco dipende da Sara, non direttamente dall'amministrazione: la
+    // richiesta deve passare da lei prima di arrivare in coda all'admin.
+    check('La richiesta nasce instradata verso Sara', 'pr', t.revisione_tipo);
+    check('Verso Sara, non un altro', saraId, t.revisione_id);
 
     let c = await computeCommissions({ adminId });
     check('Un tavolo in attesa non genera provvigioni', 0, c.perPr.get(marcoId).maturato);
 
-    const anteprima = await tavoli.ripartizionePrevista(t);
-    check('L anteprima e calcolabile', true, anteprima.ok);
-    check('L anteprima prevede 120 di costo', 120, anteprima.costoTotale);
+    await respinta(
+      'Un amministratore non puo approvare prima che Sara abbia rivisto',
+      () => tavoli.approva(tavoloId, 'boss', adminId),
+      'in revisione presso'
+    );
 
-    await tavoli.approva(tavoloId, 'boss');
+    const revisione = await revisioni.rivedi({
+      tavoloId,
+      revisorePrId: saraId,
+      percentuale: 5, // accetta la percentuale consigliata (quella del profilo di Marco)
+      commento: 'Cliente abituale, nessun problema.'
+    });
+    check('Sara non ha modificato la percentuale consigliata', false, revisione.modificata);
+    check('Dopo la revisione di Sara la richiesta arriva all amministrazione', 'admin', revisione.prossimo.tipo);
+
+    t = await tavoli.getTavolo(tavoloId);
+    check('Il tavolo risulta ora instradato verso l amministrazione', 'admin', t.revisione_tipo);
+
+    await respinta(
+      'Sara non puo rivedere due volte lo stesso passaggio',
+      () => revisioni.rivedi({ tavoloId, revisorePrId: saraId, percentuale: 5 }),
+      "arrivata all'amministrazione"
+    );
+
+    await tavoli.approva(tavoloId, 'boss', adminId);
     t = await tavoli.getTavolo(tavoloId);
     check('Il tavolo risulta approvato', 'approvato', t.stato);
     check('Viene registrato chi ha deciso', 'boss', t.deciso_da_nickname);
@@ -94,7 +119,11 @@ function fraGiorni(quanti) {
     check('Sara trattiene la differenza 12%-5%', 70, c.perPr.get(saraId).trattenuto);
 
     sezione('Una decisione non si prende due volte');
-    await respinta('Approvare due volte lo stesso tavolo', () => tavoli.approva(tavoloId, 'boss'), 'gia');
+    await respinta(
+      'Approvare due volte lo stesso tavolo',
+      () => tavoli.approva(tavoloId, 'boss', adminId),
+      'gia'
+    );
 
     sezione('Il rifiuto conserva lo storico');
     const daRifiutare = await tavoli.creaRichiesta(marcoId, {
@@ -271,11 +300,24 @@ function fraGiorni(quanti) {
       numero_persone: 2,
       spesa_prevista: 500
     });
-    await tavoli.approva(pulito, 'boss');
+    await revisioni.rivedi({ tavoloId: pulito, revisorePrId: saraId, percentuale: 5 });
+    await tavoli.approva(pulito, 'boss', adminId);
     check('Ripartizione presente dopo l approvazione', 2, (await quote.delTavolo(pulito)).length);
+
     await tavoli.riapri(pulito, 'boss');
     check('La ripartizione viene rimossa', 0, (await quote.delTavolo(pulito)).length);
     check('Il tavolo torna in attesa', 'in_attesa', (await tavoli.getTavolo(pulito)).stato);
+    check('La revisione riparte da Sara', 'pr', (await tavoli.getTavolo(pulito)).revisione_tipo);
+    check(
+      'Il trail precedente e stato cancellato',
+      0,
+      (await revisioni.situazione(pulito)).righe.filter((r) => r.passaggio).length
+    );
+
+    // Va rivisto di nuovo: il passaggio precedente non vale piu'.
+    await revisioni.rivedi({ tavoloId: pulito, revisorePrId: saraId, percentuale: 5 });
+    await tavoli.approva(pulito, 'boss', adminId);
+    check('Riapprovato senza problemi', 'approvato', (await tavoli.getTavolo(pulito)).stato);
 
     sezione('Annullamento di un pagamento');
     const versati = await pagamenti.effettuatiDa('pr', saraId, 10);
@@ -338,7 +380,12 @@ function fraGiorni(quanti) {
       'motivazione'
     );
 
-    sezione('Approvazione bloccata da percentuali incoerenti');
+    sezione('Una revisione non puo superare la percentuale di chi rivede');
+    // Marco viene portato oltre la percentuale di Sara: un'incoerenza a
+    // livello di profilo. Non blocca la creazione della richiesta (si vede
+    // solo quando qualcuno deve davvero decidere una percentuale), ma Sara
+    // non puo accettare senza pensarci il valore consigliato, perche'
+    // supererebbe la sua.
     await run('UPDATE pr SET percentuale_provvigione = 20 WHERE id = ?', [marcoId]);
     const incoerente = await tavoli.creaRichiesta(marcoId, {
       data: fraGiorni(11),
@@ -347,13 +394,33 @@ function fraGiorni(quanti) {
       spesa_prevista: 800
     });
     await respinta(
-      'Approvare con il collaboratore sopra al responsabile',
-      () => tavoli.approva(incoerente, 'boss'),
-      'rimetterebbe'
+      'Sara non puo accettare una percentuale superiore alla sua',
+      () => revisioni.rivedi({ tavoloId: incoerente, revisorePrId: saraId, percentuale: 20 }),
+      'ci rimetteresti'
     );
+
+    // Si puo' risolvere in due modi equivalenti: Sara riduce la percentuale
+    // solo per questo tavolo, oppure si corregge il profilo di Marco. Si
+    // verifica il primo, che è quello nuovo.
+    const decisione = await revisioni.rivedi({
+      tavoloId: incoerente,
+      revisorePrId: saraId,
+      percentuale: 12,
+      commento: 'Accordo speciale solo per questo tavolo, non cambio il suo profilo.'
+    });
+    check('Sara ha dovuto correggere la percentuale', true, decisione.modificata);
+    check('La percentuale scelta e il tetto di Sara', 12, decisione.percentualeDecisa);
+
+    await tavoli.approva(incoerente, 'boss', adminId);
+    check('Approvato con la percentuale corretta da Sara', 'approvato', (await tavoli.getTavolo(incoerente)).stato);
+    const quoteIncoerente = await quote.delTavolo(incoerente);
+    check(
+      'Il profilo di Marco (20%) non e stato usato: resta congelato il 12%',
+      12,
+      quoteIncoerente.find((q) => q.pr_id === marcoId).percentuale
+    );
+
     await run('UPDATE pr SET percentuale_provvigione = 5 WHERE id = ?', [marcoId]);
-    await tavoli.approva(incoerente, 'boss');
-    check('Sistemate le percentuali, l approvazione passa', 'approvato', (await tavoli.getTavolo(incoerente)).stato);
 
     sezione('Nickname duplicati');
     check('Nickname esistente rilevato', true, await utenti.nicknameEsiste('SARA'));

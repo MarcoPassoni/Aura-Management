@@ -2,6 +2,7 @@
 // Sostituisce il "callback hell" sparso nel codice originale e garantisce
 // che ogni operazione multi-tabella sia atomica.
 const { db } = require('../models/db');
+const { logger } = require('../utils/secure-logger');
 
 function run(sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -40,7 +41,10 @@ function transaction(work) {
         await run('ROLLBACK');
       } catch (rollbackErr) {
         // Se anche il rollback fallisce, l'errore originale resta quello utile.
-        console.error('[DB] Rollback fallito:', rollbackErr.message);
+        logger.error('Rollback fallito dopo un errore di transazione.', {
+          categoria: 'database',
+          errore: rollbackErr.message
+        });
       }
       throw err;
     }

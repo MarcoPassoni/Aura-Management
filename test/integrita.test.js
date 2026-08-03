@@ -11,6 +11,7 @@ const quote = require('../services/quote');
 const utenti = require('../services/users');
 const tavoli = require('../services/tavoli');
 const pagamenti = require('../services/pagamenti');
+const revisioni = require('../services/revisioni');
 const diagnostica = require('../services/diagnostica');
 const { loadHierarchy } = require('../services/hierarchy');
 const { computeCommissions } = require('../services/commissions');
@@ -113,14 +114,18 @@ function fraGiorni(quanti) {
     check('Il responsabile di oggi e invece Luca', 'luca', marcoDopo.debitoreCorrente.nome);
     check('Sara continua a dover girare la sua quota', 50, c.perPr.get(saraId).giratoAiCollaboratori);
 
-    // Un tavolo nuovo maturera' invece verso Luca.
+    // Un tavolo nuovo maturera' invece verso Luca, che ora e' il suo
+    // responsabile diretto: e' lui a doverlo rivedere per primo.
     const nuovo = await tavoli.creaRichiesta(marcoId, {
       data: fraGiorni(2),
       nome_tavolo: 'Sala 1 - 9',
       numero_persone: 2,
       spesa_prevista: 1000
     });
-    await tavoli.approva(nuovo, 'boss');
+    const nuovoTavolo = await tavoli.getTavolo(nuovo);
+    check('La richiesta e instradata verso il nuovo responsabile', lucaId, nuovoTavolo.revisione_id);
+    await revisioni.rivedi({ tavoloId: nuovo, revisorePrId: lucaId, percentuale: 5 });
+    await tavoli.approva(nuovo, 'boss', adminId);
     c = await computeCommissions({ adminId });
     check('Ora Marco ha due debitori distinti', 2, c.perPr.get(marcoId).debitori.length);
     check('Marco ha maturato 100 in tutto', 100, c.perPr.get(marcoId).maturato);

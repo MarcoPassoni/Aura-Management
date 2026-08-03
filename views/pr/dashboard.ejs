@@ -44,8 +44,21 @@
   <% } %>
 </div>
 
-<% if (inAttesa > 0) { %>
+<% if (daRivedere > 0) { %>
   <div class="avviso avviso--attenzione">
+    <div class="riga-tra">
+      <span>
+        Hai <%= numero(daRivedere) %>
+        <%= daRivedere === 1 ? 'richiesta' : 'richieste' %> di un collaboratore in attesa
+        della tua revisione.
+      </span>
+      <a href="/pr/revisioni" class="pulsante pulsante--piccolo">Rivedi</a>
+    </div>
+  </div>
+<% } %>
+
+<% if (inAttesa > 0) { %>
+  <div class="avviso avviso--informativo">
     <div>
       Hai <%= numero(inAttesa) %>
       <%= inAttesa === 1 ? 'prenotazione' : 'prenotazioni' %> in attesa di approvazione.

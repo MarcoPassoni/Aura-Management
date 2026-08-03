@@ -26,6 +26,7 @@
 const { run, get, all, transaction } = require('./db-helpers');
 const v = require('./validation');
 const quote = require('./quote');
+const revisioni = require('./revisioni');
 const denaro = require('./denaro');
 const { saldoCoppiaCent } = require('./commissions');
 
@@ -65,27 +66,43 @@ function leggiIncassoEffettivo(valore) {
   return v.importo(testo, { campo: "L'incasso effettivo", min: 0, max: 1000000 });
 }
 
-/** Crea una richiesta di tavolo da parte di un collaboratore. */
+/**
+ * Crea una richiesta di tavolo da parte di un collaboratore.
+ *
+ * Se sopra il venditore ci sono altri collaboratori, la richiesta nasce gia'
+ * instradata verso il primo di loro (vedi services/revisioni.js): tocchera' a
+ * lui, prima che a chiunque altro, deciderne la percentuale. Se il venditore
+ * e' un capofila (nessun collaboratore sopra di lui, solo l'amministrazione),
+ * la richiesta va dritta in coda all'amministrazione, come e' sempre stato.
+ *
+ * L'avvio della revisione avviene nella stessa transazione della creazione:
+ * se la catena del venditore non e' risolvibile (un responsabile orfano, un
+ * ciclo), la richiesta non nasce affatto, invece di restare bloccata in un
+ * limbo che nessuno sa di dover sbloccare.
+ */
 async function creaRichiesta(prId, dati) {
   const campi = campiTavolo(dati);
   const pr_id = v.idNumerico(prId, 'Il collaboratore');
 
-  const r = await run(
-    `INSERT INTO tavoli (pr_id, data, nome_tavolo, numero_persone, spesa_prevista,
-                         omaggi, note_tavolo, stato)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      pr_id,
-      campi.data,
-      campi.nome_tavolo,
-      campi.numero_persone,
-      campi.spesa_prevista,
-      campi.omaggi,
-      campi.note_tavolo,
-      STATI.ATTESA
-    ]
-  );
-  return r.lastID;
+  return transaction(async (tx) => {
+    const r = await tx.run(
+      `INSERT INTO tavoli (pr_id, data, nome_tavolo, numero_persone, spesa_prevista,
+                           omaggi, note_tavolo, stato)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        pr_id,
+        campi.data,
+        campi.nome_tavolo,
+        campi.numero_persone,
+        campi.spesa_prevista,
+        campi.omaggi,
+        campi.note_tavolo,
+        STATI.ATTESA
+      ]
+    );
+    await revisioni.avvia(r.lastID, pr_id, tx);
+    return r.lastID;
+  });
 }
 
 async function getTavolo(id) {
@@ -174,13 +191,20 @@ function bloccaSeScoperti(problemi, azione) {
 }
 
 /**
- * Approva una richiesta.
+ * Approva una richiesta. E' l'unica azione che genera davvero il debito: solo
+ * l'amministrazione puo' farla, dopo che la richiesta e' arrivata in fondo
+ * all'eventuale catena di revisione (services/revisioni.js).
+ *
+ * `percentualeCapofila` e' la percentuale che l'amministrazione decide per il
+ * capofila su questo tavolo: l'unico livello che nessun collaboratore puo'
+ * rivedere, perche' non ha nessuno sopra di se'. Se non indicata, si usa la
+ * percentuale corrente del suo profilo (il comportamento di sempre).
  *
  * L'unica cosa che viene scritta oltre allo stato e' la fotografia della catena
  * di provvigioni: da questo momento le percentuali di questo tavolo non
  * cambiano piu', qualunque cosa succeda alla struttura.
  */
-async function approva(tavoloId, nicknameDecisore) {
+async function approva(tavoloId, nicknameDecisore, adminId, percentualeCapofila = null) {
   const id = v.idNumerico(tavoloId, 'Il tavolo');
   return transaction(async (tx) => {
     const tavolo = await tx.get('SELECT * FROM tavoli WHERE id = ?', [id]);
@@ -191,11 +215,21 @@ async function approva(tavoloId, nicknameDecisore) {
       );
     }
 
-    const congelate = await quote.congela(id, tavolo.pr_id, tx, { bloccaIncoerenze: true });
+    // Decide (o conferma) la percentuale del capofila prima di congelare,
+    // cosi' che il congelamento la trovi gia' fra le percentuali decise.
+    const sovrascritture = await revisioni.registraDecisioneFinale(
+      { tavoloId: id, venditoreId: tavolo.pr_id, adminId, percentuale: percentualeCapofila },
+      tx
+    );
+
+    const congelate = await quote.congela(id, tavolo.pr_id, tx, {
+      bloccaIncoerenze: true,
+      sovrascritture
+    });
 
     await tx.run(
       `UPDATE tavoli SET stato = ?, deciso_il = datetime('now'), deciso_da_nickname = ?,
-                         motivo_rifiuto = NULL
+                         motivo_rifiuto = NULL, revisione_tipo = NULL, revisione_id = NULL
        WHERE id = ? AND stato = ?`,
       [STATI.APPROVATO, nicknameDecisore, id, STATI.ATTESA]
     );
@@ -218,7 +252,7 @@ async function rifiuta(tavoloId, nicknameDecisore, motivo) {
     }
     await tx.run(
       `UPDATE tavoli SET stato = ?, deciso_il = datetime('now'), deciso_da_nickname = ?,
-                         motivo_rifiuto = ?
+                         motivo_rifiuto = ?, revisione_tipo = NULL, revisione_id = NULL
        WHERE id = ? AND stato = ?`,
       [STATI.RIFIUTATO, nicknameDecisore, testoMotivo || null, id, STATI.ATTESA]
     );
@@ -333,6 +367,12 @@ async function impostaIncasso(tavoloId, valore, nickname) {
  * Le quote congelate vengono rimosse: il tavolo esce dai calcoli finche' non
  * viene deciso di nuovo, e alla nuova approvazione la catena viene rifotografata
  * con le percentuali di quel momento.
+ *
+ * L'intera revisione riparte da zero: il trail di chi aveva gia' deciso cosa
+ * viene cancellato e la richiesta torna al primo collaboratore sopra il
+ * venditore (o dritta in coda all'amministrazione, se il venditore e' un
+ * capofila) - ricalcolato sulla struttura attuale, che nel frattempo potrebbe
+ * essere cambiata.
  */
 async function riapri(tavoloId, nickname) {
   const id = v.idNumerico(tavoloId, 'Il tavolo');
@@ -349,6 +389,7 @@ async function riapri(tavoloId, nickname) {
     }
 
     await quote.libera(id, tx);
+    await tx.run('DELETE FROM revisioni_tavolo WHERE tavolo_id = ?', [id]);
 
     await tx.run(
       `UPDATE tavoli SET stato = ?, deciso_il = NULL, deciso_da_nickname = NULL,
@@ -357,6 +398,8 @@ async function riapri(tavoloId, nickname) {
        WHERE id = ?`,
       [STATI.ATTESA, `[riaperto da ${nickname}]`, id]
     );
+
+    await revisioni.avvia(id, tavolo.pr_id, tx);
 
     return tavolo;
   });
@@ -369,7 +412,15 @@ async function riapri(tavoloId, nickname) {
  * provvigioni: sono i due numeri che servono per capire una riga senza doverla
  * aprire, e vengono dalla stessa fonte delle pagine economiche.
  */
-async function elenca({ prIds = null, stato = null, from = null, to = null, limite = 500 } = {}) {
+async function elenca({
+  prIds = null,
+  stato = null,
+  from = null,
+  to = null,
+  revisioneTipo = null,
+  revisioneId = null,
+  limite = 500
+} = {}) {
   const where = [];
   const params = [];
 
@@ -389,6 +440,17 @@ async function elenca({ prIds = null, stato = null, from = null, to = null, limi
   if (to) {
     where.push('t.data <= ?');
     params.push(to);
+  }
+  // Filtra per chi ha in mano la richiesta adesso (services/revisioni.js):
+  // usato per mostrare solo cio' che e' davvero pronto per l'amministrazione,
+  // o solo cio' che spetta a un particolare revisore.
+  if (revisioneTipo) {
+    where.push('t.revisione_tipo = ?');
+    params.push(revisioneTipo);
+  }
+  if (revisioneId) {
+    where.push('t.revisione_id = ?');
+    params.push(revisioneId);
   }
 
   const clause = where.length ? `WHERE ${where.join(' AND ')}` : '';
@@ -438,48 +500,6 @@ async function contaInAttesa(prIds) {
   return r ? r.n : 0;
 }
 
-/**
- * Come sarebbe ripartito un tavolo non ancora approvato, con le percentuali di
- * oggi. Serve a mostrare all'amministratore il costo di cio' che sta per
- * approvare. E' dichiaratamente una stima: le percentuali definitive sono
- * quelle che verranno congelate all'atto dell'approvazione.
- */
-async function ripartizionePrevista(tavolo) {
-  try {
-    const catena = await quote.catenaDi(tavolo.pr_id);
-    const righe = quote.righeQuota(tavolo.id, catena);
-    const imponibileCent = denaro.aCentesimi(
-      tavolo.incasso_effettivo === null || tavolo.incasso_effettivo === undefined
-        ? tavolo.spesa_prevista
-        : tavolo.incasso_effettivo
-    );
-
-    const voci = righe.map((q, i) => {
-      const lordoCent = denaro.quotaCentesimi(imponibileCent, q.percentuale);
-      const sottoCent = denaro.quotaCentesimi(imponibileCent, q.percentuale_sotto);
-      return {
-        prId: q.pr_id,
-        nickname: catena.righe[i].nickname,
-        livello: q.livello,
-        percentuale: q.percentuale,
-        lordo: denaro.aEuro(lordoCent),
-        netto: denaro.aEuro(lordoCent - sottoCent)
-      };
-    });
-
-    return {
-      ok: true,
-      voci,
-      costoTotale: voci.length ? voci[voci.length - 1].lordo : 0,
-      incoerenze: catena.incoerenze
-    };
-  } catch (err) {
-    // La catena non e' risolvibile: meglio dirlo prima dell'approvazione che
-    // farla fallire dopo il clic.
-    return { ok: false, motivo: err.message, voci: [], costoTotale: 0, incoerenze: [] };
-  }
-}
-
 function etichettaStato(stato) {
   switch (stato) {
     case STATI.APPROVATO:
@@ -502,7 +522,6 @@ module.exports = {
   riapri,
   elenca,
   contaInAttesa,
-  ripartizionePrevista,
   scopertiCausatiDa,
   etichettaStato
 };

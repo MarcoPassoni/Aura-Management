@@ -126,15 +126,25 @@
       <% } %>
     </div>
   </div>
-<% } else if (previste) { %>
+<% } else if (revisione) { %>
   <div class="pannello">
     <div class="pannello__testa">
-      <h2>Come verrebbe ripartito</h2>
-      <span class="secondario">Stima con le percentuali di oggi</span>
+      <div>
+        <h2>Revisione in corso</h2>
+        <span class="secondario">
+          <% if (!revisione.ok) { %>
+            catena non risolvibile
+          <% } else if (tavolo.revisione_tipo === 'admin') { %>
+            pronta per l'approvazione
+          <% } else { %>
+            in attesa presso un collaboratore
+          <% } %>
+        </span>
+      </div>
     </div>
     <div class="pannello__corpo pannello__corpo--stretto">
-      <% if (!previste.ok) { %>
-        <div class="vuoto"><%= previste.motivo %></div>
+      <% if (!revisione.ok) { %>
+        <div class="vuoto"><%= revisione.motivo %></div>
       <% } else { %>
         <div class="tabella-contenitore">
           <table>
@@ -144,17 +154,25 @@
                 <th scope="col" class="num">Percentuale</th>
                 <th scope="col" class="num">Gli spetta</th>
                 <th scope="col" class="num">Gli resta</th>
+                <th scope="col">Deciso da</th>
+                <th scope="col">Commento</th>
               </tr>
             </thead>
             <tbody>
-              <% previste.voci.slice().reverse().forEach(function (q) { %>
-                <tr>
-                  <td class="<%= rientro(previste.voci.length - 1 - q.livello) %>">
+              <% const ultimo = revisione.righe.length - 1; %>
+              <% revisione.righe.slice().reverse().forEach(function (q) { %>
+                <tr<%= !q.passaggio ? ' class="riga--attenuata"' : '' %>>
+                  <td class="<%= rientro(ultimo - q.livello) %>">
                     <span class="principale"><%= q.nickname %></span>
+                    <% if (q.livello === 0) { %><div class="secondario">venditore</div><% } %>
                   </td>
                   <td class="num"><%= percentuale(q.percentuale) %></td>
                   <td class="num"><%= euro(q.lordo) %></td>
                   <td class="num principale"><%= euro(q.netto) %></td>
+                  <td class="secondario">
+                    <%= q.passaggio ? q.passaggio.revisore_nickname : 'ancora da decidere' %>
+                  </td>
+                  <td class="secondario"><%= q.passaggio && q.passaggio.commento ? q.passaggio.commento : '-' %></td>
                 </tr>
               <% }); %>
             </tbody>
